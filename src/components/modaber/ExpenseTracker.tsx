@@ -276,8 +276,17 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
               <div className="relative">
                 <input
                   type="number"
+                  min="0"
+                  step="any"
                   value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val.includes('-')) {
+                      setAmount(val.replace(/-/g, ''));
+                    } else {
+                      setAmount(val);
+                    }
+                  }}
                   placeholder="0"
                   className="w-full px-4 py-3 bg-secondary rounded-xl text-foreground placeholder-muted-foreground text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
                 />
