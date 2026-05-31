@@ -21,6 +21,8 @@ const CATEGORY_LABELS: Record<string, Record<Language, string>> = {
   entertainment: { ar: 'الترفيه', en: 'Entertainment' },
   development:   { ar: 'التطوير الشخصي', en: 'Personal Development' },
   misc:          { ar: 'متنوع', en: 'Miscellaneous' },
+  // Backend ML category
+  optional:      { ar: 'المصاريف الاختيارية', en: 'Optional Expenses' },
 };
 
 const CATEGORY_ADVICE: Record<string, Record<Language, string>> = {
@@ -30,6 +32,8 @@ const CATEGORY_ADVICE: Record<string, Record<Language, string>> = {
   entertainment: { ar: 'خصص ميزانية ثابتة للترفيه لتجنب الإنفاق العشوائي.', en: 'Set a fixed entertainment budget to avoid random spending.' },
   development:   { ar: 'استثمر في تعلم مهارات جديدة لزيادة الدخل.', en: 'Invest in learning new skills to increase income.' },
   misc:          { ar: 'احتفظ بمبلغ للمصاريف غير المتوقعة.', en: 'Keep a buffer for unexpected expenses.' },
+  // Backend ML category
+  optional:      { ar: 'راجع اشتراكاتك وقلّل ما لا تحتاجه.', en: 'Review subscriptions and cut what you do not need.' },
 };
 
 const DEFAULT_PERCENTAGES: Record<string, number> = {
@@ -71,23 +75,29 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     });
   }, [lang, available]);
 
+  /** Map raw backend allocations array → component state (respects current language) */
+  const mapApiAllocations = useCallback((apiAllocations: any[]) =>
+    apiAllocations.map((a: any) => ({
+      key: a.category as string,
+      category: CATEGORY_LABELS[a.category]?.[lang] ?? a.category,
+      amount: a.amount as number,
+      percentage: a.percentage as number,
+      advice: CATEGORY_ADVICE[a.category]?.[lang] ?? '',
+    })), [lang]);
+
   useEffect(() => {
     const fetchBudget = async () => {
       const res = await budgetApi.getPlan();
       if (res.ok && res.data) {
         const data = res.data as any;
-        if (data && data.allocations && data.allocations.length > 0) {
-            const stored: StoredBudget = { percentages: {}, amounts: {} };
-            data.allocations.forEach((a: any) => {
-              stored.percentages[a.category] = a.percentage;
-              stored.amounts[a.category] = a.amount;
-            });
-            setAllocations(buildAllocations(stored));
+        if (data?.allocations?.length > 0) {
+          // Render exactly what the backend returns — no hardcoded category list
+          setAllocations(mapApiAllocations(data.allocations));
         } else {
-            setAllocations(buildAllocations());
+          setAllocations(buildAllocations());
         }
       } else {
-        // Fallback if no plan exists on backend
+        // Fallback if no plan exists on backend yet
         setAllocations(buildAllocations());
       }
 
@@ -112,22 +122,16 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   }, [lang]);
 
   const handleSave = async () => {
-    const toStore: StoredBudget = { percentages: {}, amounts: {} };
-    allocations.forEach(item => {
-      toStore.percentages[item.key] = item.percentage;
-      toStore.amounts[item.key] = item.amount;
-    });
-    
-    // Save to backend
-    const apiData = {
-      allocations: allocations.map(a => ({
-        category: a.key,
-        amount: a.amount,
-        percentage: a.percentage
-      }))
-    };
-    await budgetApi.createPlan(apiData);
-    
+    // Trigger ML recalculation — backend reads all data from DB, no body needed
+    const res = await budgetApi.createPlan();
+    // Apply the returned ML plan to the UI immediately
+    if (res.ok && res.data) {
+      const data = res.data as any;
+      if (data?.allocations?.length > 0) {
+        setAllocations(mapApiAllocations(data.allocations));
+      }
+    }
+
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 3000);
   };
@@ -147,15 +151,8 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
       }));
       setAllocations(finalAllocations);
 
-      // Auto-save to backend
-      const apiData = {
-        allocations: finalAllocations.map(a => ({
-          category: a.key,
-          amount: a.amount,
-          percentage: a.percentage
-        }))
-      };
-      budgetApi.createPlan(apiData).catch(console.error);
+      // Auto-save: trigger backend recalculation (no body needed)
+      budgetApi.createPlan().catch(console.error);
 
       const adj: Record<string, number> = {};
       CATEGORY_KEYS.forEach(k => { adj[k] = 0; });

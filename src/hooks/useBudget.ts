@@ -28,22 +28,23 @@ export const useBudgetPlan = (month?: number, year?: number) =>
     staleTime: 1000 * 60 * 5,
   });
 
-/** Create or update a budget plan (backend uses createPlan for both) */
+/** Trigger a budget plan recalculation — backend reads all data from DB, no body needed */
 export const useCreateBudgetPlan = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: unknown) => budgetApi.createPlan(data),
+    mutationFn: () => budgetApi.createPlan(),
     onSuccess: () => qc.invalidateQueries({ queryKey: BUDGET_KEY }),
   });
 };
 
-/** Save allocations — wraps createPlan since the separate allocations endpoint
- *  is not available on the backend; the plan payload already includes allocations. */
+/** Triggers a backend recalculation — backend owns all data, no body is sent.
+ *  The allocations param is accepted for call-site compatibility but is not forwarded. */
 export const useSaveBudgetAllocations = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ allocations }: { planId?: number; allocations: BudgetAllocationItem[] }) =>
-      budgetApi.createPlan({ allocations }),
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    mutationFn: (_?: { planId?: number; allocations?: BudgetAllocationItem[] }) =>
+      budgetApi.createPlan(),
     onSuccess: () => qc.invalidateQueries({ queryKey: BUDGET_KEY }),
   });
 };
