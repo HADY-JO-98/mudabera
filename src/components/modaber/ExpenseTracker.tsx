@@ -173,7 +173,8 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
 
   // Group by category for summary
   const categoryTotals = thisMonthExpenses.reduce((acc, e) => {
-    acc[e.category] = (acc[e.category] || 0) + e.amount;
+    const catId = (e.category || '').toLowerCase();
+    acc[catId] = (acc[catId] || 0) + e.amount;
     return acc;
   }, {} as Record<string, number>);
 
@@ -363,9 +364,10 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
           ) : (
             <div className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pe-2">
               {expenses.slice(0, 50).map((exp, idx) => {
-                const conf = categoryConfig[exp.category] || categoryConfig.other;
+                const catKey = (exp.category || '').toLowerCase();
+                const conf = categoryConfig[catKey] || categoryConfig.other;
                 const CatIcon = conf.icon;
-                const catLabel = categories.find(c => c.id === exp.category)?.label || exp.category;
+                const catLabel = categories.find(c => c.id === catKey)?.label || exp.category;
                 return (
                   <div key={exp.id}
                     className="glass p-4 rounded-2xl border border-border flex items-center gap-4 group hover:border-primary/30 hover:shadow-md transition-all duration-300"
