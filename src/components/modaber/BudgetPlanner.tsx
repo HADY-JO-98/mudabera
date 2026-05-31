@@ -49,6 +49,7 @@ const getStorageKey = (email: string) => `modaber_budget_${email}`;
 
 const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   const t = translations[lang];
+  const [apiTotalIncome, setApiTotalIncome] = useState<number | null>(null);
   const [allocations, setAllocations] = useState<(BudgetAllocation & { key: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,8 +58,9 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   const [showAdjust, setShowAdjust] = useState(false);
   const initializedRef = useRef(false);
 
+  const totalIncome = apiTotalIncome ?? profile.monthlySalary;
   const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
-  const available = profile.monthlySalary - totalFixed;
+  const available = totalIncome - totalFixed;
 
   // Build allocations from percentages/amounts with current language
   const buildAllocations = useCallback((stored?: StoredBudget) => {
@@ -90,6 +92,9 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
       const res = await budgetApi.getPlan();
       if (res.ok && res.data) {
         const data = res.data as any;
+        if (data?.totalIncome !== undefined && data?.totalIncome !== null) {
+          setApiTotalIncome(Number(data.totalIncome));
+        }
         if (data?.allocations?.length > 0) {
           // Render exactly what the backend returns — no hardcoded category list
           setAllocations(mapApiAllocations(data.allocations));
@@ -127,6 +132,9 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     // Apply the returned ML plan to the UI immediately
     if (res.ok && res.data) {
       const data = res.data as any;
+      if (data?.totalIncome !== undefined && data?.totalIncome !== null) {
+        setApiTotalIncome(Number(data.totalIncome));
+      }
       if (data?.allocations?.length > 0) {
         setAllocations(mapApiAllocations(data.allocations));
       }
@@ -171,7 +179,6 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     }
   };
 
-  const totalIncome = profile.monthlySalary;
   const totalAllocated = allocations.reduce((sum, item) => sum + item.amount, 0);
   const totalAdjustment = Object.values(adjustments).reduce((a, b) => a + b, 0);
   const remainingCash = totalIncome - totalFixed - totalAllocated + totalAdjustment;
