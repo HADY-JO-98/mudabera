@@ -214,8 +214,9 @@ export const alertApi = {
 
 // ─── Budget API ────────────────────────────────────────────────────────────────
 export const budgetApi = {
-  createPlan(data: unknown) {
-    return apiClient.post('/api/Budget/plan', data, getAuthHeaders());
+  createPlan() {
+    // Per API contract: backend retrieves all data from DB itself — no body needed
+    return apiClient.post('/api/Budget/plan', undefined, getAuthHeaders());
   },
   getPlan(month?: number, year?: number) {
     const params = new URLSearchParams();

@@ -4,7 +4,7 @@ import { translations } from '../../translations';
 import { shoppingApi, expenseApi, budgetApi } from '../../services/apiClient';
 import { Language } from '../../types';
 import { CheckCircle2, Circle, AlertCircle, Loader2, Sparkles, PartyPopper, ShoppingCart, Tag, ShieldCheck, Download, MessageSquare, Save, Apple, Carrot, Beef, Fish, Milk, Wheat, Coffee, Cookie, SprayCan, Package, ChevronDown } from 'lucide-react';
-import { formatPrice, fn } from '../../utils/formatNumber';
+import { formatPrice, formatNumber, fn } from '../../utils/formatNumber';
 import { translateProductName, translateQuantity } from '../../utils/productTranslations';
 import { generateFullReport } from '../../utils/pdfGenerator';
 
@@ -65,6 +65,44 @@ const detectCategory = (name: string): ShoppingCategory => {
   if (snackWords.some(w => n.includes(w))) return 'snacks';
   if (cleanWords.some(w => n.includes(w))) return 'cleaning';
   return 'other';
+};
+
+const mapApiItem = (item: any): ShoppingItem => {
+  let cat: ShoppingCategory = 'other';
+  const apiCat = (item.category || '').toLowerCase();
+  if (apiCat.includes('beverage')) cat = 'beverages';
+  else if (apiCat.includes('dairy')) cat = 'dairy';
+  else if (apiCat.includes('grain') || apiCat.includes('bakery')) cat = 'grains';
+  else if (apiCat.includes('protein') || apiCat.includes('meat')) cat = 'meats';
+  else if (apiCat.includes('fish') || apiCat.includes('seafood')) cat = 'fish';
+  else if (apiCat.includes('snack') || apiCat.includes('sweet')) cat = 'snacks';
+  else if (apiCat.includes('clean') || apiCat.includes('personal')) cat = 'cleaning';
+  else if (apiCat.includes('fruit')) cat = 'fruits';
+  else if (apiCat.includes('vegetable')) cat = 'vegetables';
+  else cat = detectCategory(item.product_name || item.name || '');
+
+  return {
+    name: item.product_name || item.name || '',
+    quantity: String(item.quantity || '1'),
+    estimatedCost: Number(item.total_price || item.estimatedCost || 0),
+    isPriority: !!item.isPriority || item.slot === 'mandatory',
+    category: cat
+  };
+};
+
+const extractApiItems = (d: any): ShoppingItem[] => {
+  if (!d) return [];
+  let raw: any[] = [];
+  if (Array.isArray(d)) {
+    raw = d;
+  } else if (Array.isArray(d.shopping_list)) {
+    raw = d.shopping_list;
+  } else if (Array.isArray(d.items)) {
+    raw = d.items;
+  } else if (Array.isArray(d.data)) {
+    raw = d.data;
+  }
+  return raw.map(mapApiItem);
 };
 
 const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }) => {
@@ -137,16 +175,9 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
       const res = await shoppingApi.getSmartList();
       const d = res.data as any;
       if (res.ok && d) {
-        const rawItems = Array.isArray(d)
-          ? d
-          : Array.isArray(d.items)
-          ? d.items
-          : Array.isArray(d.data)
-          ? d.data
-          : [];
-        if (rawItems.length > 0) {
-          const withCats = rawItems.map((item: any) => ({ ...item, category: item.category || detectCategory(item.name) }));
-          setItems(withCats);
+        const parsed = extractApiItems(d);
+        if (parsed.length > 0) {
+          setItems(parsed);
           setLoading(false);
           return;
         }
@@ -157,15 +188,8 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
         const genRes = await shoppingApi.generate();
         const gd = genRes.data as any;
         if (genRes.ok && gd) {
-          const generatedItems = Array.isArray(gd)
-            ? gd
-            : Array.isArray(gd.items)
-            ? gd.items
-            : Array.isArray(gd.data)
-            ? gd.data
-            : [];
-          const allItems = generatedItems.map((item: any) => ({ ...item, category: item.category || detectCategory(item.name) }));
-          setItems(allItems);
+          const parsed = extractApiItems(gd);
+          setItems(parsed);
         } else {
           setItems([]);
         }
@@ -213,9 +237,8 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
     try {
       const res = await shoppingApi.modify({ instruction: aiNotes });
       if (res.ok && res.data) {
-        const modifiedItems = Array.isArray(res.data) ? res.data : (res.data as any).items || [];
-        const withCats = modifiedItems.map((item: any) => ({ ...item, category: item.category || detectCategory(item.name) }));
-        setItems(withCats);
+        const parsed = extractApiItems(res.data);
+        setItems(parsed);
         setNotesFeedback(lang === 'ar' ? '✅ تم تحديث القائمة بنجاح' : '✅ List updated successfully');
       } else {
         setNotesFeedback(lang === 'ar' ? '⚠️ حدث خطأ أثناء التحديث' : '⚠️ Failed to update list');
@@ -470,8 +493,8 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
           {[
             { label: t.items, value: fn(items.length, lang), color: 'text-primary' },
             { label: t.completed, value: fn(completed.size, lang), color: 'text-accent-foreground' },
-            { label: lang === 'ar' ? 'إجمالي المحدد' : 'Checked Total', value: `${fn(completedCost, lang)} ${t.currency}`, color: 'text-primary' },
-            { label: t.totalEst, value: `${fn(totalCost, lang)} ${t.currency}`, color: isOverBudget ? 'text-destructive' : 'text-foreground' },
+            { label: lang === 'ar' ? 'إجمالي المحدد' : 'Checked Total', value: formatPrice(completedCost, lang, t.currency), color: 'text-primary' },
+            { label: t.totalEst, value: formatPrice(totalCost, lang, t.currency), color: isOverBudget ? 'text-destructive' : 'text-foreground' },
           ].map((stat, i) => (
             <div key={i} className="p-3 bg-secondary rounded-xl border border-border text-center flex flex-col items-center justify-center gap-1" style={{ animation: `slideUp 0.4s ease-out ${0.1 * i}s both` }}>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider leading-tight">{stat.label}</p>
@@ -658,14 +681,14 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
                   return (
                     <div key={catId} className="flex justify-between text-xs opacity-60">
                       <span>{lang === 'ar' ? catConfig.labelAr : catConfig.labelEn}</span>
-                      <span className="font-bold">{fn(catTotal, lang)} {t.currency}</span>
+                      <span className="font-bold">{formatPrice(catTotal, lang, t.currency)}</span>
                     </div>
                   );
                 })}
                 <hr className="border-background/20" />
                 <div className="flex justify-between items-end">
                   <span className="text-sm opacity-60">{t.totalEst}</span>
-                  <span className="text-3xl font-black text-primary">{fn(totalCost, lang)} <span className="text-base">{t.currency}</span></span>
+                  <span className="text-3xl font-black text-primary">{formatNumber(totalCost, lang, 2)} <span className="text-base">{t.currency}</span></span>
                 </div>
                 <div className={`flex items-center gap-2 p-3 rounded-xl text-xs font-bold ${isOverBudget ? 'bg-destructive/20 text-destructive' : 'bg-primary/20 text-primary'}`}>
                   <AlertCircle className="w-4 h-4" />
