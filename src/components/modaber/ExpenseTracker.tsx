@@ -7,7 +7,7 @@ import { fn } from '../../utils/formatNumber';
 import {
   Mic, MicOff, Plus, Wallet, Coffee, Car, Zap, Home, ShoppingBag,
   GraduationCap, Stethoscope, Gamepad2, Utensils, Fuel, Smartphone,
-  Wifi, Droplets, Trash2, TrendingDown, Receipt, Sparkles, ArrowRight
+  Wifi, Droplets, Trash2, TrendingDown, Receipt, Sparkles, ArrowRight, AlertCircle
 } from 'lucide-react';
 
 interface ExpenseEntry {
@@ -38,6 +38,7 @@ const categoryConfig: Record<string, { icon: React.ElementType; color: string }>
   medical: { icon: Stethoscope, color: 'bg-primary/15 text-primary border-primary/20' },
   entertainment: { icon: Gamepad2, color: 'bg-amber/15 text-amber border-amber/20' },
   coffee: { icon: Coffee, color: 'bg-amber/15 text-amber border-amber/20' },
+  emergency: { icon: AlertCircle, color: 'bg-black/15 text-black border-black/20 dark:bg-white/15 dark:text-white dark:border-white/20' },
   other: { icon: Receipt, color: 'bg-muted text-muted-foreground border-border' },
 };
 
@@ -69,6 +70,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
     { id: 'medical', label: t.medical },
     { id: 'entertainment', label: t.expCatEntertainment },
     { id: 'coffee', label: t.expCatCoffee },
+    { id: 'emergency', label: t.expCatEmergency },
     { id: 'other', label: t.expCatOther },
   ];
 

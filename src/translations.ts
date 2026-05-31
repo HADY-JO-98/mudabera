@@ -316,6 +316,7 @@ const translations: Record<Language, Record<string, string>> = {
     expCatShopping: 'التسوق',
     expCatEntertainment: 'الترفيه',
     expCatCoffee: 'المقاهي',
+    expCatEmergency: 'الطوارئ',
     expCatOther: 'أخرى',
   },
   en: {
@@ -633,6 +634,7 @@ const translations: Record<Language, Record<string, string>> = {
     expCatShopping: 'Shopping',
     expCatEntertainment: 'Entertainment',
     expCatCoffee: 'Coffee',
+    expCatEmergency: 'Emergency',
     expCatOther: 'Other',
   }
 };
