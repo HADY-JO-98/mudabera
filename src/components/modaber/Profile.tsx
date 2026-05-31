@@ -137,19 +137,19 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
               { label: t.age, field: 'age', isOptional: true, value: profile.age ? fn(profile.age, lang) : t.not_specified },
               { label: t.monthlySalary, field: 'monthlySalary', isOptional: false, value: `${fn(profile.monthlySalary, lang)} ${t.currency}` },
               { label: t.familyMembers, field: 'familyMembers', isOptional: false, value: fn(profile.familyMembers, lang) },
-              { label: t.maritalStatus, field: 'maritalStatus', isOptional: true, value: t[profile.maritalStatus as keyof typeof t] || profile.maritalStatus },
+              { label: t.maritalStatus, field: 'maritalStatus', isOptional: true, value: t[profile.maritalStatus as keyof typeof t] || profile.maritalStatus, options: [{value: 'not_specified', label: t.not_specified}, {value: 'single', label: t.single}, {value: 'married', label: t.married}] },
+              { label: t.incomeStability, field: 'incomeStability', isOptional: false, value: t[(profile.incomeStability || '').toLowerCase().replace('-', '_') as keyof typeof t] || profile.incomeStability, options: [{value: 'Full-time', label: t.full_time}, {value: 'Freelance', label: t.freelance}, {value: 'Seasonal', label: t.seasonal}, {value: 'Mixed', label: t.mixed}] },
+              { label: t.livingCostLevel, field: 'livingCostLevel', isOptional: false, value: t[(profile.livingCostLevel || '').toLowerCase() as keyof typeof t] || profile.livingCostLevel, options: [{value: 'Low', label: t.low}, {value: 'Medium', label: t.medium}, {value: 'High', label: t.high}] },
             ].map((item, i) => (
               <div key={i}>
                 <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-1">
                   {item.label} {item.isOptional && `(${t.optional})`} {!item.isOptional && <span className="text-destructive">*</span>}
                 </label>
                 {isEditing ? (
-                  item.field === 'maritalStatus' ? (
-                    <select value={editedProfile.maritalStatus} onChange={(e) => updateRootField('maritalStatus', e.target.value as MaritalStatus)}
+                  item.options ? (
+                    <select value={editedProfile[item.field as keyof UserProfile] as string} onChange={(e) => updateRootField(item.field as keyof UserProfile, e.target.value as any)}
                       className="w-full px-4 py-2 bg-secondary border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary text-foreground transition-all">
-                      <option value="not_specified">{t.not_specified}</option>
-                      <option value="single">{t.single}</option>
-                      <option value="married">{t.married}</option>
+                      {item.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                     </select>
                   ) : (
                     <input type="number" value={editedProfile[item.field as keyof UserProfile] as string | number || ''} onChange={(e) => updateRootField(item.field as keyof UserProfile, item.field === 'age' && !e.target.value ? undefined : Number(e.target.value) as never)}
