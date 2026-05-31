@@ -100,7 +100,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogin = useCallback(async (acc: UserAccount) => {
-    setAccount(acc);
     const profileRes = await profileApi.get();
     if (profileRes.ok && profileRes.data) {
       const data = profileRes.data as UserProfile;
@@ -108,6 +107,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setProfile(data);
       }
     }
+    setAccount(acc);
   }, []);
 
   const handleLogout = useCallback(() => {
