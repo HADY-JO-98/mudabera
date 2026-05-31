@@ -22,8 +22,14 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLangState] = useState<Language>('ar');
-  const [theme, setThemeState] = useState<'light' | 'dark'>('light');
+  const [lang, setLangState] = useState<Language>(() => {
+    const saved = localStorage.getItem('modaber_lang') as Language;
+    return saved === 'en' || saved === 'ar' ? saved : 'ar';
+  });
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('modaber_theme') as 'light' | 'dark';
+    return saved === 'light' || saved === 'dark' ? saved : 'light';
+  });
   const [account, setAccount] = useState<UserAccount | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -31,6 +37,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Apply lang to DOM
   const setLang = useCallback((l: Language) => {
     setLangState(l);
+    localStorage.setItem('modaber_lang', l);
     document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = l;
     document.body.className = l === 'ar' ? 'font-ar' : '';
@@ -39,6 +46,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Apply theme to DOM
   const setTheme = useCallback((t: 'light' | 'dark') => {
     setThemeState(t);
+    localStorage.setItem('modaber_theme', t);
     document.documentElement.classList.toggle('dark', t === 'dark');
   }, []);
 

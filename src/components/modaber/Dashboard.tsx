@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { generateFullReport } from '../../utils/pdfGenerator';
 import { expenseApi, budgetApi } from '../../services/apiClient';
-import { fn } from '../../utils/formatNumber';
+import { fn, formatNumber } from '../../utils/formatNumber';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend, RadialBarChart, RadialBar
@@ -82,6 +82,7 @@ interface BudgetPlanResponse {
 
 const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
   const t = translations[lang];
+  const fe = (num: number, l: Language) => formatNumber(num, l, 2);
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [timeRange, setTimeRange] = useState<'3m' | '6m' | '1y'>('3m');
   const [activeChart, setActiveChart] = useState<'income' | 'expenses' | 'budget'>('income');
@@ -257,7 +258,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
               {p.name}
             </span>
-            <span className="font-bold text-xs text-foreground">{fn(p.value, lang)} {t.currency}</span>
+            <span className="font-bold text-xs text-foreground">{fe(p.value, lang)} {t.currency}</span>
           </div>
         ))}
       </div>
@@ -320,7 +321,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             </div>
             <p className={`text-xs font-bold uppercase tracking-widest relative z-10 ${i === 0 ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{stat.label}</p>
             <h4 className={`text-3xl font-black relative z-10 ${stat.isNeg ? 'text-destructive' : i === 0 ? 'text-primary-foreground' : 'text-foreground'}`}>
-              {stat.isNeg && (stat.value as number) !== 0 ? '-' : ''}{fn(Math.abs(stat.value as number), lang)} {t.currency}
+              {stat.isNeg && (stat.value as number) !== 0 ? '-' : ''}{fe(Math.abs(stat.value as number), lang)} {t.currency}
             </h4>
           </div>
         ))}
@@ -361,7 +362,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-bold text-foreground">{t.fixedCosts}</span>
-                <span className="text-xs font-bold text-rose">{fn(totalFixed, lang)} {t.currency} ({fn(totalIncome > 0 ? Math.round((totalFixed / totalIncome) * 100) : 0, lang)}%)</span>
+                <span className="text-xs font-bold text-rose">{fe(totalFixed, lang)} {t.currency} ({fn(totalIncome > 0 ? Math.round((totalFixed / totalIncome) * 100) : 0, lang)}%)</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-rose to-orange rounded-full transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min(100, (totalFixed / totalIncome) * 100) : 0}%` }} />
@@ -371,7 +372,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-bold text-foreground">{lang === 'ar' ? 'المصروفات المتغيرة' : 'Variable Expenses'}</span>
-                <span className="text-xs font-bold text-amber">{fn(expensesData.totalExpenses, lang)} {t.currency} ({fn(totalIncome > 0 ? Math.round((expensesData.totalExpenses / totalIncome) * 100) : 0, lang)}%)</span>
+                <span className="text-xs font-bold text-amber">{fe(expensesData.totalExpenses, lang)} {t.currency} ({fn(totalIncome > 0 ? Math.round((expensesData.totalExpenses / totalIncome) * 100) : 0, lang)}%)</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-amber to-orange rounded-full transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min(100, (expensesData.totalExpenses / totalIncome) * 100) : 0}%` }} />
@@ -381,7 +382,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-bold text-foreground">{t.availableCash}</span>
-                <span className={`text-xs font-bold ${availableIncome >= 0 ? 'text-primary' : 'text-destructive'}`}>{fn(Math.abs(availableIncome), lang)} {t.currency} ({fn(savingsPercentage, lang)}%)</span>
+                <span className={`text-xs font-bold ${availableIncome >= 0 ? 'text-primary' : 'text-destructive'}`}>{fe(Math.abs(availableIncome), lang)} {t.currency} ({fn(savingsPercentage, lang)}%)</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all duration-700 ${availableIncome >= 0 ? 'bg-gradient-to-r from-primary to-teal' : 'bg-destructive'}`} style={{ width: `${Math.min(100, savingsPercentage)}%` }} />
@@ -392,7 +393,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               <div>
                 <div className="flex justify-between mb-1.5">
                   <span className="text-xs font-bold text-foreground">{lang === 'ar' ? 'الميزانية المخصصة' : 'Budget Allocated'}</span>
-                  <span className="text-xs font-bold text-violet">{fn(totalBudgetAllocated, lang)} {t.currency}</span>
+                  <span className="text-xs font-bold text-violet">{fe(totalBudgetAllocated, lang)} {t.currency}</span>
                 </div>
                 <div className="h-3 bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-violet to-indigo rounded-full transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min(100, (totalBudgetAllocated / totalIncome) * 100) : 0}%` }} />
@@ -463,7 +464,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme === 'dark' ? 'hsl(230 18% 18%)' : 'hsl(220 18% 90%)'} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(220 12% 48%)', fontSize: 13, fontWeight: 700 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(220 12% 35%)', fontSize: 14, fontWeight: 800 }} orientation={lang === 'ar' ? 'right' : 'left'} tickFormatter={(v) => fn(v, lang)} tickMargin={14} width={60} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(220 12% 35%)', fontSize: 14, fontWeight: 800 }} orientation={lang === 'ar' ? 'right' : 'left'} tickFormatter={(v) => fe(Number(v), lang)} tickMargin={14} width={60} />
                 <Tooltip content={<CustomTooltip />} />
                 <Area type="monotone" dataKey={incomeLabel} stroke="hsl(200 85% 50%)" fill="url(#colorIncome)" strokeWidth={2} strokeDasharray="5 5" />
                 <Area type="monotone" dataKey={expensesLabel} stroke="hsl(350 80% 55%)" fill="url(#colorExpenses)" strokeWidth={2.5} />
@@ -515,7 +516,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
                     {cat.name}
                   </span>
-                  <span className="text-sm font-black text-foreground">{fn(cat.value, lang)} {t.currency}</span>
+                  <span className="text-sm font-black text-foreground">{fe(cat.value, lang)} {t.currency}</span>
                 </div>
               )) : (
                 <div className="text-center text-muted-foreground text-sm py-8">
@@ -563,7 +564,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                     {item.name}
                   </span>
-                  <span className="text-sm font-black text-foreground">{fn(item.value, lang)} {t.currency}</span>
+                  <span className="text-sm font-black text-foreground">{fe(item.value, lang)} {t.currency}</span>
                 </div>
               )) : (
                 <div className="text-center text-muted-foreground text-sm py-8">
@@ -598,7 +599,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                 <span className="flex items-center gap-3 text-muted-foreground font-bold">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} /> {item.name}
                 </span>
-                <span className="font-black text-foreground">{fn(item.value, lang)} {t.currency}</span>
+                <span className="font-black text-foreground">{fe(item.value, lang)} {t.currency}</span>
               </div>
             ))}
           </div>
@@ -614,7 +615,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               <div>
                 <p className="text-xs font-black text-destructive uppercase">{t.overspendingAlert}</p>
                 <p className="text-[11px] text-destructive/80 leading-relaxed mt-1">
-                  {lang === 'ar' ? `تجاوزت دخلك بمقدار ${fn(Math.abs(availableIncome), lang)} ${t.currency}` : `You exceeded income by ${fn(Math.abs(availableIncome), lang)} ${t.currency}`}
+                  {lang === 'ar' ? `تجاوزت دخلك بمقدار ${fe(Math.abs(availableIncome), lang)} ${t.currency}` : `You exceeded income by ${fe(Math.abs(availableIncome), lang)} ${t.currency}`}
                 </p>
               </div>
             </div>

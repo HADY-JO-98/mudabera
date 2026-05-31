@@ -5,12 +5,27 @@ import type { UserProfile } from '../types';
 
 export const ALERTS_KEY = ['alerts'] as const;
 
-const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en'): AppNotification[] => {
+const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', apiError?: string | null): AppNotification[] => {
   const alerts: AppNotification[] = [];
   const now = new Date().toISOString();
 
+  // 0. Add System/API Error Notification at the top
+  if (apiError) {
+    alerts.push({
+      id: 'fb-system-error',
+      type: 'budget',
+      title: lang === 'ar' ? 'تنبيه النظام (الذكاء الاصطناعي)' : 'System Alert (AI Engine)',
+      message: lang === 'ar'
+        ? 'فشل الاتصال بمحرك التنبؤات والتحليلات الذكي (ML API). تم تفعيل نظام النصائح المالي المحلي مؤقتاً.'
+        : 'Could not connect to the smart prediction engine. Localized financial advice system is active.',
+      timestamp: now,
+      read: false
+    });
+  }
+
   if (!profile) {
     return [
+      ...alerts,
       {
         id: 'fb-welcome',
         type: 'saving',
@@ -148,13 +163,19 @@ export const useAlerts = () =>
           const profileRes = await profileApi.get().catch(() => null);
           const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
           const profile = profileRes?.ok && profileRes.data ? (profileRes.data as UserProfile) : null;
-          return generateFallbackAlerts(profile, lang);
-        } catch {
+          const fallbacks = generateFallbackAlerts(profile, lang, res.error);
+          console.log("[useAlerts] API failed (400). Generated fallbacks:", fallbacks);
+          return fallbacks;
+        } catch (err) {
           const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
-          return generateFallbackAlerts(null, lang);
+          const fallbacks = generateFallbackAlerts(null, lang, res.error);
+          console.log("[useAlerts] API failed and fallback generation threw error. Generic fallbacks:", fallbacks, err);
+          return fallbacks;
         }
       }
-      return toAlertList(res.data);
+      const list = toAlertList(res.data);
+      console.log("[useAlerts] API succeeded. Fetched alerts:", list);
+      return list;
     },
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 60,
