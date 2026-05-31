@@ -46,27 +46,30 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
   useEffect(() => {
     const fetchPredictions = async () => {
       try {
-        const res = await predictionApi.getLatest();
+        // Rotate page between visits
+        let currentPage = 1;
+        const storedPage = localStorage.getItem('mudaber_prediction_page');
+        if (storedPage) {
+          currentPage = parseInt(storedPage, 10);
+        }
 
-        // DEBUG — open browser console to see the exact backend response shape
+        // Layout-friendly number of items per page
+        const perPage = 6;
+        let res = await predictionApi.getLatest(currentPage, perPage);
+
         console.log('[PriceForecaster] raw response:', res);
 
+        let fetched: PricePrediction[] = [];
         if (res.ok && res.data) {
           const d = res.data as any;
+          const raw = Array.isArray(d) ? d
+                    : Array.isArray(d.data) ? d.data
+                    : Array.isArray(d.items) ? d.items
+                    : Array.isArray(d.results) ? d.results
+                    : Array.isArray(d.predictions) ? d.predictions
+                    : [];
 
-          // Try every known shape the backend might return
-          const raw: any[] =
-            Array.isArray(d)           ? d               // plain array
-            : Array.isArray(d.data)    ? d.data          // { data: [] }
-            : Array.isArray(d.items)   ? d.items         // { items: [] }
-            : Array.isArray(d.results) ? d.results       // { results: [] }
-            : Array.isArray(d.predictions) ? d.predictions // { predictions: [] }
-            : [];
-
-          console.log('[PriceForecaster] extracted array:', raw);
-
-          // Normalize backend field names → frontend PricePrediction shape
-          const fetched: PricePrediction[] = raw.map((r: any) => ({
+          fetched = raw.map((r: any) => ({
             item:           r.product_name   ?? r.item        ?? r.productName  ?? r.name ?? '',
             currentPrice:   r.current_price  ?? r.currentPrice ?? 0,
             predictedPrice: r.predicted_price ?? r.predictedPrice ?? r.next_month_price ?? r.nextMonthPrice ?? 0,
@@ -74,13 +77,36 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
             confidence:     r.confidence     ?? 0.75,
             advice:         r.advice         ?? r.tip ?? r.recommendation ?? '',
           }));
-
-          console.log('[PriceForecaster] normalized predictions:', fetched);
-          setPredictions(fetched);
-        } else {
-          console.warn('[PriceForecaster] API error:', res.error);
-          setPredictions([]);
         }
+
+        // Fallback to page 1 if we went out of bounds
+        if (fetched.length === 0 && currentPage > 1) {
+          currentPage = 1;
+          res = await predictionApi.getLatest(currentPage, perPage);
+          if (res.ok && res.data) {
+            const d = res.data as any;
+            const raw = Array.isArray(d) ? d
+                      : Array.isArray(d.data) ? d.data
+                      : Array.isArray(d.items) ? d.items
+                      : Array.isArray(d.results) ? d.results
+                      : Array.isArray(d.predictions) ? d.predictions
+                      : [];
+
+            fetched = raw.map((r: any) => ({
+              item:           r.product_name   ?? r.item        ?? r.productName  ?? r.name ?? '',
+              currentPrice:   r.current_price  ?? r.currentPrice ?? 0,
+              predictedPrice: r.predicted_price ?? r.predictedPrice ?? r.next_month_price ?? r.nextMonthPrice ?? 0,
+              trend:          (r.trend ?? r.trendLabel ?? r.trend_label ?? 'stable').toLowerCase(),
+              confidence:     r.confidence     ?? 0.75,
+              advice:         r.advice         ?? r.tip ?? r.recommendation ?? '',
+            }));
+          }
+        }
+
+        // Increment or rotate next page
+        const nextPage = fetched.length > 0 ? currentPage + 1 : 1;
+        localStorage.setItem('mudaber_prediction_page', nextPage.toString());
+        setPredictions(fetched);
       } catch (error) {
         console.error('[PriceForecaster] fetch failed:', error);
       }

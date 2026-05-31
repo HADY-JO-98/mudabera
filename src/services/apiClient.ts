@@ -282,9 +282,9 @@ export const investmentsApi = {
 //   GET /api/Prediction/latest          — most recent prediction set
 //   GET /api/Prediction/{date}          — predictions for a specific date (YYYY-MM-DD)
 export const predictionApi = {
-  /** Fetch the latest price predictions */
-  getLatest() {
-    return apiClient.get('/api/Prediction/latest', getAuthHeaders());
+  /** Fetch the latest price predictions with pagination support */
+  getLatest(page = 1, perPage = 50) {
+    return apiClient.get(`/api/Prediction/latest?page=${page}&per_page=${perPage}`, getAuthHeaders());
   },
   /** Fetch predictions for a specific date, e.g. "2025-08-01" */
   getByDate(date: string) {
