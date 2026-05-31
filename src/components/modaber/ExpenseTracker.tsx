@@ -200,20 +200,20 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass p-4 rounded-2xl border border-border space-y-1" style={{ animation: 'slideUp 0.4s ease-out both' }}>
           <p className="text-[10px] font-bold text-muted-foreground uppercase">{t.expTodaySpent}</p>
-          <p className="text-xl font-black text-foreground">{fn(totalToday.toFixed(0), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span></p>
+          <p className="text-xl font-black text-foreground">{fn(totalToday.toFixed(2), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span></p>
         </div>
         <div className="glass p-4 rounded-2xl border border-border space-y-1" style={{ animation: 'slideUp 0.4s ease-out 0.08s both' }}>
           <p className="text-[10px] font-bold text-muted-foreground uppercase">{t.expMonthSpent}</p>
-          <p className="text-xl font-black text-foreground">{fn(totalThisMonth.toFixed(0), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span></p>
+          <p className="text-xl font-black text-foreground">{fn(totalThisMonth.toFixed(2), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span></p>
         </div>
         <div className="glass p-4 rounded-2xl border border-border space-y-1" style={{ animation: 'slideUp 0.4s ease-out 0.16s both' }}>
           <p className="text-[10px] font-bold text-muted-foreground uppercase">{t.expBudget}</p>
-          <p className="text-xl font-black text-foreground">{fn(budget.toFixed(0), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span></p>
+          <p className="text-xl font-black text-foreground">{fn(budget.toFixed(2), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span></p>
         </div>
         <div className="glass p-4 rounded-2xl border border-border space-y-1" style={{ animation: 'slideUp 0.4s ease-out 0.24s both' }}>
           <p className="text-[10px] font-bold text-muted-foreground uppercase">{t.expRemaining}</p>
           <p className={`text-xl font-black ${remaining >= 0 ? 'text-primary' : 'text-destructive'}`}>
-            {fn(remaining.toFixed(0), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span>
+            {fn(remaining.toFixed(2), lang)} <span className="text-xs font-bold text-muted-foreground">{t.currency}</span>
           </p>
         </div>
       </div>
@@ -337,7 +337,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-bold text-foreground truncate">{catLabel}</span>
-                        <span className="text-xs font-bold text-muted-foreground">{fn(total.toFixed(0), lang)} {t.currency}</span>
+                        <span className="text-xs font-bold text-muted-foreground">{fn(total.toFixed(2), lang)} {t.currency}</span>
                       </div>
                       <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
                         <div className="h-full bg-primary rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%` }} />
@@ -382,7 +382,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
                       </p>
                     </div>
                     <div className="text-end flex-shrink-0">
-                      <p className="font-black text-destructive text-sm">-{fn(exp.amount.toFixed(0), lang)} {t.currency}</p>
+                      <p className="font-black text-destructive text-sm">-{fn(exp.amount.toFixed(2), lang)} {t.currency}</p>
                     </div>
                     <button onClick={() => handleDelete(exp.id)}
                       className="p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all opacity-0 group-hover:opacity-100">
