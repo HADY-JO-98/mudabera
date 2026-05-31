@@ -8,8 +8,8 @@ import {
   BarChart3, Activity, CreditCard
 } from 'lucide-react';
 import { generateFullReport } from '../../utils/pdfGenerator';
-import { expenseApi, budgetApi } from '../../services/apiClient';
-import { fn } from '../../utils/formatNumber';
+import { expenseApi, budgetApi, insightsApi } from '../../services/apiClient';
+import { fn, formatPrice } from '../../utils/formatNumber';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend, RadialBarChart, RadialBar
@@ -113,10 +113,40 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
   const [budgetAllocations, setBudgetAllocations] = useState<StoredAllocation[]>([]);
   const [loading, setLoading] = useState(true);
 
+  interface ApiInsight {
+    message: string;
+    type: string;
+    category?: string;
+  }
+  interface ApiCategoryInsight {
+    category: string;
+    recommendation: string;
+    status: string;
+    spent: number;
+    planned: number;
+    pct_of_plan: number;
+  }
+  interface ApiFixedCategoryInsight {
+    category: string;
+    planned: number;
+    actual: number;
+    diff: number;
+    diff_pct: number;
+    status: string;
+    recommendation: string;
+  }
+  const [apiInsights, setApiInsights] = useState<ApiInsight[]>([]);
+  const [apiCategoryInsights, setApiCategoryInsights] = useState<ApiCategoryInsight[]>([]);
+  const [apiFixedCategoryInsights, setApiFixedCategoryInsights] = useState<ApiFixedCategoryInsight[]>([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
+
   React.useEffect(() => {
     const fetchData = async () => {
+      setInsightsLoading(true);
       const expRes = await expenseApi.getAll(1, 500);
       const budRes = await budgetApi.getPlan();
+      const insightsRes = await insightsApi.getBasic();
+      const statusRes = await insightsApi.getStatus();
 
       const raw: ExpenseRecord[] = expRes.ok && expRes.data
         ? Array.isArray(expRes.data)
@@ -158,7 +188,25 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
           })));
         }
       }
+
+      if (insightsRes.ok && insightsRes.data) {
+        const d = insightsRes.data as any;
+        if (Array.isArray(d.insights)) {
+          setApiInsights(d.insights);
+        }
+      }
+      if (statusRes.ok && statusRes.data) {
+        const d = statusRes.data as any;
+        if (Array.isArray(d.categories)) {
+          setApiCategoryInsights(d.categories);
+        }
+        if (Array.isArray(d.fixed_categories)) {
+          setApiFixedCategoryInsights(d.fixed_categories);
+        }
+      }
+
       setLoading(false);
+      setInsightsLoading(false);
     };
     fetchData();
   }, [lang]);
@@ -320,7 +368,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             </div>
             <p className={`text-xs font-bold uppercase tracking-widest relative z-10 ${i === 0 ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{stat.label}</p>
             <h4 className={`text-3xl font-black relative z-10 ${stat.isNeg ? 'text-destructive' : i === 0 ? 'text-primary-foreground' : 'text-foreground'}`}>
-              {stat.isNeg && (stat.value as number) !== 0 ? '-' : ''}{fn(Math.abs(stat.value as number), lang)} {t.currency}
+              {stat.isNeg && (stat.value as number) !== 0 ? '-' : ''}{formatPrice(Math.abs(stat.value as number), lang, t.currency)}
             </h4>
           </div>
         ))}
@@ -361,7 +409,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-bold text-foreground">{t.fixedCosts}</span>
-                <span className="text-xs font-bold text-rose">{fn(totalFixed, lang)} {t.currency} ({fn(totalIncome > 0 ? Math.round((totalFixed / totalIncome) * 100) : 0, lang)}%)</span>
+                <span className="text-xs font-bold text-rose">{formatPrice(totalFixed, lang, t.currency)} ({fn(totalIncome > 0 ? Math.round((totalFixed / totalIncome) * 100) : 0, lang)}%)</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-rose to-orange rounded-full transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min(100, (totalFixed / totalIncome) * 100) : 0}%` }} />
@@ -371,7 +419,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-bold text-foreground">{lang === 'ar' ? 'المصروفات المتغيرة' : 'Variable Expenses'}</span>
-                <span className="text-xs font-bold text-amber">{fn(expensesData.totalExpenses, lang)} {t.currency} ({fn(totalIncome > 0 ? Math.round((expensesData.totalExpenses / totalIncome) * 100) : 0, lang)}%)</span>
+                <span className="text-xs font-bold text-amber">{formatPrice(expensesData.totalExpenses, lang, t.currency)} ({fn(totalIncome > 0 ? Math.round((expensesData.totalExpenses / totalIncome) * 100) : 0, lang)}%)</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-gradient-to-r from-amber to-orange rounded-full transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min(100, (expensesData.totalExpenses / totalIncome) * 100) : 0}%` }} />
@@ -381,7 +429,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-xs font-bold text-foreground">{t.availableCash}</span>
-                <span className={`text-xs font-bold ${availableIncome >= 0 ? 'text-primary' : 'text-destructive'}`}>{fn(Math.abs(availableIncome), lang)} {t.currency} ({fn(savingsPercentage, lang)}%)</span>
+                <span className={`text-xs font-bold ${availableIncome >= 0 ? 'text-primary' : 'text-destructive'}`}>{availableIncome < 0 ? '-' : ''}{formatPrice(Math.abs(availableIncome), lang, t.currency)} ({fn(savingsPercentage, lang)}%)</span>
               </div>
               <div className="h-3 bg-muted rounded-full overflow-hidden">
                 <div className={`h-full rounded-full transition-all duration-700 ${availableIncome >= 0 ? 'bg-gradient-to-r from-primary to-teal' : 'bg-destructive'}`} style={{ width: `${Math.min(100, savingsPercentage)}%` }} />
@@ -392,7 +440,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               <div>
                 <div className="flex justify-between mb-1.5">
                   <span className="text-xs font-bold text-foreground">{lang === 'ar' ? 'الميزانية المخصصة' : 'Budget Allocated'}</span>
-                  <span className="text-xs font-bold text-violet">{fn(totalBudgetAllocated, lang)} {t.currency}</span>
+                  <span className="text-xs font-bold text-violet">{formatPrice(totalBudgetAllocated, lang, t.currency)}</span>
                 </div>
                 <div className="h-3 bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-violet to-indigo rounded-full transition-all duration-700" style={{ width: `${totalIncome > 0 ? Math.min(100, (totalBudgetAllocated / totalIncome) * 100) : 0}%` }} />
@@ -515,7 +563,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
                     {cat.name}
                   </span>
-                  <span className="text-sm font-black text-foreground">{fn(cat.value, lang)} {t.currency}</span>
+                  <span className="text-sm font-black text-foreground">{formatPrice(cat.value, lang, t.currency)}</span>
                 </div>
               )) : (
                 <div className="text-center text-muted-foreground text-sm py-8">
@@ -563,7 +611,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                     {item.name}
                   </span>
-                  <span className="text-sm font-black text-foreground">{fn(item.value, lang)} {t.currency}</span>
+                  <span className="text-sm font-black text-foreground">{formatPrice(item.value, lang, t.currency)}</span>
                 </div>
               )) : (
                 <div className="text-center text-muted-foreground text-sm py-8">
@@ -598,71 +646,201 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                 <span className="flex items-center gap-3 text-muted-foreground font-bold">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} /> {item.name}
                 </span>
-                <span className="font-black text-foreground">{fn(item.value, lang)} {t.currency}</span>
+                <span className="font-black text-foreground">{formatPrice(item.value, lang, t.currency)}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Smart Insights */}
-        <div className="glass p-6 rounded-[2rem] border border-border shadow-lg flex flex-col gap-4" style={{ animation: 'slideUp 0.6s ease-out 0.6s both' }}>
-          <h3 className="text-sm font-bold text-muted-foreground">{lang === 'ar' ? 'تنبيهات ذكية' : 'Smart Insights'}</h3>
+        <div className="glass p-6 rounded-[2rem] border border-border shadow-lg flex flex-col h-[480px] animate-in fade-in" style={{ animation: 'slideUp 0.6s ease-out 0.6s both' }}>
+          <h3 className="text-sm font-bold text-muted-foreground mb-4">{lang === 'ar' ? 'تنبيهات ذكية' : 'Smart Insights'}</h3>
 
-          {availableIncome < 0 && (
-            <div className="bg-destructive/10 p-4 rounded-2xl border border-destructive/20 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-black text-destructive uppercase">{t.overspendingAlert}</p>
-                <p className="text-[11px] text-destructive/80 leading-relaxed mt-1">
-                  {lang === 'ar' ? `تجاوزت دخلك بمقدار ${fn(Math.abs(availableIncome), lang)} ${t.currency}` : `You exceeded income by ${fn(Math.abs(availableIncome), lang)} ${t.currency}`}
-                </p>
+          <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4 custom-scrollbar">
+            {insightsLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 h-full">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="text-[10px] text-muted-foreground font-bold">{lang === 'ar' ? 'جاري تحليل البيانات...' : 'Analyzing financial data...'}</span>
               </div>
-            </div>
-          )}
+            ) : (
+              <>
+                {/* 1. Render API-based natural language insights */}
+                {apiInsights.map((insight, idx) => {
+                  const type = (insight.type || '').toLowerCase();
+                  const cat = (insight.category || '').toLowerCase();
 
-          {spentPercentage > 70 && availableIncome >= 0 && (
-            <div className="bg-amber/10 p-4 rounded-2xl border border-amber/20 flex gap-3">
-              <AlertCircle className="w-5 h-5 text-amber flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-black text-amber uppercase">{t.budgetWarning}</p>
-                <p className="text-[11px] text-amber/80 leading-relaxed mt-1">
-                  {lang === 'ar' ? `أنفقت ${fn(spentPercentage, lang)}٪ من دخلك. حاول تقليل المصاريف المتغيرة.` : `You've spent ${spentPercentage}% of your income. Try reducing variable expenses.`}
-                </p>
-              </div>
-            </div>
-          )}
+                  let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
+                  let Icon = ShieldCheck;
 
-          {savingsPercentage >= 20 && (
-            <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex gap-3">
-              <Target className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-black text-primary uppercase">{lang === 'ar' ? 'ادخار ممتاز!' : 'Great Savings!'}</p>
-                <p className="text-[11px] text-primary/80 leading-relaxed mt-1">
-                  {lang === 'ar' ? `تدخر ${fn(savingsPercentage, lang)}٪ من دخلك - استمر!` : `Saving ${savingsPercentage}% of income - keep it up!`}
-                </p>
-              </div>
-            </div>
-          )}
+                  if (type === 'negative' || type === 'danger' || type === 'error' || type === 'alert') {
+                    bgClass = 'bg-destructive/10 border-destructive/20 text-destructive'; // RED
+                    Icon = AlertCircle;
+                  } else if (type === 'warning' || type === 'warn') {
+                    bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
+                    Icon = AlertCircle;
+                  } else if (type === 'info' || cat.includes('saving')) {
+                    bgClass = 'bg-violet/10 border-violet/20 text-violet'; // VIOLET
+                    Icon = Target;
+                  } else if (cat.includes('emergency')) {
+                    bgClass = 'bg-sky/10 border-sky/20 text-sky'; // SKY
+                    Icon = Activity;
+                  } else if (cat.includes('optional') || cat.includes('entertainment')) {
+                    bgClass = 'bg-teal/10 border-teal/20 text-teal'; // TEAL
+                    Icon = Target;
+                  }
 
-          <div className="bg-violet/10 p-4 rounded-2xl border border-violet/20 flex gap-3">
-            <Activity className="w-5 h-5 text-violet flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-black text-violet uppercase">{t.subscriptionUp}</p>
-              <p className="text-[11px] text-violet/80 leading-relaxed mt-1">{t.budgetTip}</p>
-            </div>
+                  return (
+                    <div key={`api-ins-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * idx}s both` }}>
+                      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-black uppercase">
+                          {type === 'positive' || type === 'success' ? (lang === 'ar' ? 'تحليل إيجابي' : 'Positive Insight') :
+                           type === 'negative' || type === 'danger' || type === 'error' ? (lang === 'ar' ? 'تحذير إنفاق' : 'Spending Alert') :
+                           type === 'warning' ? (lang === 'ar' ? 'تنبيه مالي' : 'Financial Warning') :
+                           (lang === 'ar' ? 'نصيحة مالية' : 'Financial Tip')}
+                        </p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{insight.message}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* 2. Render API-based category recommendations */}
+                {apiCategoryInsights.filter(c => c.recommendation).map((c, idx) => {
+                  const catLabel = CATEGORY_LABELS[c.category]?.[lang] || c.category;
+                  
+                  const isOverspent = c.status === 'overspent' || c.status === 'overspend' || c.status === 'danger' || c.status === 'critical' || c.spent > c.planned || c.pct_of_plan > 100;
+                  const isCloseToLimit = c.status === 'warning' || (c.pct_of_plan >= 80 && c.pct_of_plan <= 100);
+
+                  let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
+                  let Icon = ShieldCheck;
+
+                  if (isOverspent) {
+                    bgClass = 'bg-rose/10 border-rose/20 text-rose'; // RED
+                    Icon = AlertCircle;
+                  } else if (isCloseToLimit) {
+                    bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
+                    Icon = AlertCircle;
+                  } else {
+                    const catId = (c.category || '').toLowerCase();
+                    if (catId.includes('saving')) {
+                      bgClass = 'bg-violet/10 border-violet/20 text-violet'; // VIOLET
+                      Icon = Target;
+                    } else if (catId.includes('emergency')) {
+                      bgClass = 'bg-sky/10 border-sky/20 text-sky'; // SKY
+                      Icon = Activity;
+                    } else if (catId.includes('optional') || catId.includes('entertainment')) {
+                      bgClass = 'bg-teal/10 border-teal/20 text-teal'; // TEAL
+                      Icon = Target;
+                    }
+                  }
+
+                  return (
+                    <div key={`api-cat-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * (apiInsights.length + idx)}s both` }}>
+                      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-black uppercase">
+                          {catLabel}
+                        </p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{c.recommendation}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* 2b. Render API-based fixed category insights (only show those with actual spending > 0) */}
+                {apiFixedCategoryInsights.filter(c => c.actual > 0 && c.recommendation).map((c, idx) => {
+                  const catLabel = EXPENSE_CAT_LABELS[c.category]?.[lang] || c.category;
+                  const isOverspent = c.status === 'overspent' || c.status === 'overspend' || c.status === 'danger' || c.status === 'critical' || c.actual > c.planned;
+                  const isCloseToLimit = c.status === 'warning' || (c.planned > 0 && (c.actual / c.planned) >= 0.8 && (c.actual / c.planned) <= 1.0);
+
+                  let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
+                  let Icon = ShieldCheck;
+
+                  if (isOverspent) {
+                    bgClass = 'bg-rose/10 border-rose/20 text-rose'; // RED
+                    Icon = AlertCircle;
+                  } else if (isCloseToLimit) {
+                    bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
+                    Icon = AlertCircle;
+                  }
+
+                  return (
+                    <div key={`api-fixed-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * (apiInsights.length + apiCategoryInsights.length + idx)}s both` }}>
+                      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-black uppercase">
+                          {catLabel}
+                        </p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{c.recommendation}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* 3. Fallback / Client-side calculated alerts if no API insights returned */}
+                {apiInsights.length === 0 && apiCategoryInsights.length === 0 && apiFixedCategoryInsights.length === 0 && (
+                  <>
+                    {availableIncome < 0 && (
+                      <div className="bg-destructive/10 p-4 rounded-2xl border border-destructive/20 flex gap-3">
+                        <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-black text-destructive uppercase">{t.overspendingAlert}</p>
+                          <p className="text-[11px] text-destructive/80 leading-relaxed mt-1">
+                            {lang === 'ar' ? `تجاوزت دخلك بمقدار ${fn(Math.abs(availableIncome), lang)} ${t.currency}` : `You exceeded income by ${fn(Math.abs(availableIncome), lang)} ${t.currency}`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {spentPercentage > 70 && availableIncome >= 0 && (
+                      <div className="bg-amber/10 p-4 rounded-2xl border border-amber/20 flex gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-black text-amber uppercase">{t.budgetWarning}</p>
+                          <p className="text-[11px] text-amber/80 leading-relaxed mt-1">
+                            {lang === 'ar' ? `أنفقت ${fn(spentPercentage, lang)}٪ من دخلك. حاول تقليل المصاريف المتغيرة.` : `You've spent ${spentPercentage}% of your income. Try reducing variable expenses.`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {savingsPercentage >= 20 && (
+                      <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20 flex gap-3">
+                        <Target className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-black text-primary uppercase">{lang === 'ar' ? 'ادخار ممتاز!' : 'Great Savings!'}</p>
+                          <p className="text-[11px] text-primary/80 leading-relaxed mt-1">
+                            {lang === 'ar' ? `تدخر ${fn(savingsPercentage, lang)}٪ من دخلك - استمر!` : `Saving ${savingsPercentage}% of income - keep it up!`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="bg-violet/10 p-4 rounded-2xl border border-violet/20 flex gap-3">
+                      <Activity className="w-5 h-5 text-violet flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-black text-violet uppercase">{t.subscriptionUp}</p>
+                        <p className="text-[11px] text-violet/80 leading-relaxed mt-1">{t.budgetTip}</p>
+                      </div>
+                    </div>
+
+                    {profile.debts.length > 0 && (
+                      <div className="bg-rose/10 p-4 rounded-2xl border border-rose/20 flex gap-3">
+                        <CreditCard className="w-5 h-5 text-rose flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-black text-rose uppercase">{lang === 'ar' ? 'ديون نشطة' : 'Active Debts'}</p>
+                          <p className="text-[11px] text-rose/80 leading-relaxed mt-1">
+                            {lang === 'ar' ? `لديك ${fn(profile.debts.length, lang)} ديون نشطة. ركز على سداد الأعلى أولوية أولاً.` : `You have ${profile.debts.length} active debts. Focus on paying high-priority ones first.`}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </div>
-
-          {profile.debts.length > 0 && (
-            <div className="bg-rose/10 p-4 rounded-2xl border border-rose/20 flex gap-3">
-              <CreditCard className="w-5 h-5 text-rose flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-black text-rose uppercase">{lang === 'ar' ? 'ديون نشطة' : 'Active Debts'}</p>
-                <p className="text-[11px] text-rose/80 leading-relaxed mt-1">
-                  {lang === 'ar' ? `لديك ${fn(profile.debts.length, lang)} ديون نشطة. ركز على سداد الأعلى أولوية أولاً.` : `You have ${profile.debts.length} active debts. Focus on paying high-priority ones first.`}
-                </p>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

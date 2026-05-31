@@ -2,8 +2,9 @@ import React from 'react';
 import { UserProfile, Language } from '../../types';
 import { translations } from '../../translations';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Target, Trophy, TrendingUp, History, X } from 'lucide-react';
+import { Target, Trophy, TrendingUp, History, X, Loader2 } from 'lucide-react';
 import { fn } from '../../utils/formatNumber';
+import { insightsApi } from '../../services/apiClient';
 
 interface AnalyticsProps {
   profile: UserProfile;
@@ -13,6 +14,8 @@ interface AnalyticsProps {
 const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
   const t = translations[lang];
   const [showAchievements, setShowAchievements] = React.useState(false);
+  const [achievements, setAchievements] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   const data = [
     { month: t.jan, savings: 400, target: 800, score: 65 },
@@ -23,11 +26,24 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
     { month: t.jun, savings: 1100, target: 800, score: 91 },
   ];
 
-  const achievements = [
-    { title: t.savingsMaster, desc: t.savingsMasterDesc, icon: "💰" },
-    { title: t.budgetNinja, desc: t.budgetNinjaDesc, icon: "🥷" },
-    { title: t.smartShopper, desc: t.smartShopperDesc, icon: "🛒" },
-  ];
+  React.useEffect(() => {
+    const fetchAchievements = async () => {
+      try {
+        const res = await insightsApi.evaluateAchievements();
+        if (res.ok && res.data) {
+          const d = res.data as any;
+          if (Array.isArray(d.all_achievements)) {
+            setAchievements(d.all_achievements);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch achievements', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAchievements();
+  }, []);
 
   const reductionData = [
     { category: t.electricity, reduction: fn(12, lang), status: t.stable, color: 'text-sky' },
@@ -50,17 +66,35 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
               <h3 className="text-3xl font-black text-foreground font-cairo">{t.yourAchievements}</h3>
               <p className="text-muted-foreground font-medium">{t.trackMilestones}</p>
             </div>
-            <div className="grid gap-4">
-              {achievements.map((a, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 bg-secondary rounded-2xl border border-border hover:shadow-md transition-all"
-                  style={{ animation: `slideUp 0.3s ease-out ${0.1 * i}s both` }}>
-                  <span className="text-3xl">{a.icon}</span>
-                  <div>
-                    <h4 className="font-bold text-foreground">{a.title}</h4>
-                    <p className="text-sm text-muted-foreground">{a.desc}</p>
-                  </div>
+            <div className="grid gap-4 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <span className="text-sm font-bold text-muted-foreground">{lang === 'ar' ? 'جاري تحميل الإنجازات...' : 'Loading achievements...'}</span>
                 </div>
-              ))}
+              ) : achievements.filter(a => a.earned).length > 0 ? (
+                achievements.filter(a => a.earned).map((a, i) => (
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-2xl border border-primary/20 bg-primary/10 hover:shadow-md transition-all duration-300"
+                    style={{ animation: `slideUp 0.3s ease-out ${0.05 * i}s both` }}>
+                    <span className="text-3xl flex-shrink-0">{a.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-foreground truncate flex items-center gap-2">
+                        {a.title}
+                        <span className="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-black rounded-full uppercase tracking-wider">
+                          {lang === 'ar' ? 'مكتمل' : 'Unlocked'}
+                        </span>
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-normal mt-0.5">{a.description}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center text-muted-foreground text-sm py-12 px-4 space-y-2">
+                  <span className="text-4xl block">🏆</span>
+                  <p className="font-bold text-foreground">{lang === 'ar' ? 'لم تفتح أي إنجازات بعد' : 'No achievements unlocked yet'}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{lang === 'ar' ? 'ابدأ بتسجيل مصروفاتك وتتبع ميزانيتك لتفتح أول إنجاز لك!' : 'Start logging expenses and tracking your budget to unlock your first milestone!'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
