@@ -53,8 +53,8 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
           currentPage = parseInt(storedPage, 10);
         }
 
-        // Layout-friendly number of items per page
-        const perPage = 6;
+        // Keep the number of items per page at exactly 50
+        const perPage = 50;
         let res = await predictionApi.getLatest(currentPage, perPage);
 
         console.log('[PriceForecaster] raw response:', res);
