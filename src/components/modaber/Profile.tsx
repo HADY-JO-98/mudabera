@@ -5,6 +5,7 @@ import { translations } from '../../translations';
 import { User, Wallet, Home, Shield, Edit2, Save, X, CheckCircle2, Coffee, ChevronUp, ChevronDown, Plus, Minus, Trash2, CreditCard, Calendar, Download, Loader2 } from 'lucide-react';
 import { generateFullReport } from '../../utils/pdfGenerator';
 import { fn } from '../../utils/formatNumber';
+import CustomSelect from '../ui/custom-select';
 
 interface ProfileProps {
   profile: UserProfile;
@@ -78,7 +79,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
 
   const fixedFields = [
     { id: 'rent', required: true }, { id: 'electricity', required: true }, { id: 'water', required: true },
-    { id: 'gas', required: true }, { id: 'transportation', required: true }, { id: 'internet', required: false }, { id: 'mobile', required: false },
+    { id: 'gas', required: true }, { id: 'transportation', required: true }, { id: 'internet', required: true }, { id: 'mobile', required: true },
   ];
   const optionalFields = [{ id: 'streaming', required: false }, { id: 'education', required: false }, { id: 'medical', required: false }];
 
@@ -137,7 +138,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
               { label: t.age, field: 'age', isOptional: true, value: profile.age ? fn(profile.age, lang) : t.not_specified },
               { label: t.monthlySalary, field: 'monthlySalary', isOptional: false, value: `${fn(profile.monthlySalary, lang)} ${t.currency}` },
               { label: t.familyMembers, field: 'familyMembers', isOptional: false, value: fn(profile.familyMembers, lang) },
-              { label: t.maritalStatus, field: 'maritalStatus', isOptional: true, value: t[profile.maritalStatus as keyof typeof t] || profile.maritalStatus, options: [{value: 'not_specified', label: t.not_specified}, {value: 'single', label: t.single}, {value: 'married', label: t.married}] },
+              { label: t.maritalStatus, field: 'maritalStatus', isOptional: false, value: t[profile.maritalStatus as keyof typeof t] || profile.maritalStatus, options: [{value: 'not_specified', label: t.not_specified}, {value: 'single', label: t.single}, {value: 'married', label: t.married}] },
               { label: t.incomeStability, field: 'incomeStability', isOptional: false, value: t[(profile.incomeStability || '').toLowerCase().replace('-', '_') as keyof typeof t] || profile.incomeStability, options: [{value: 'Full-time', label: t.full_time}, {value: 'Freelance', label: t.freelance}, {value: 'Seasonal', label: t.seasonal}, {value: 'Mixed', label: t.mixed}] },
               { label: t.livingCostLevel, field: 'livingCostLevel', isOptional: false, value: t[(profile.livingCostLevel || '').toLowerCase() as keyof typeof t] || profile.livingCostLevel, options: [{value: 'Low', label: t.low}, {value: 'Medium', label: t.medium}, {value: 'High', label: t.high}] },
             ].map((item, i) => (
@@ -147,10 +148,8 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
                 </label>
                 {isEditing ? (
                   item.options ? (
-                    <select value={editedProfile[item.field as keyof UserProfile] as string} onChange={(e) => updateRootField(item.field as keyof UserProfile, e.target.value as any)}
-                      className="w-full px-4 py-2 bg-secondary border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary text-foreground transition-all">
-                      {item.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                    </select>
+                    <CustomSelect value={editedProfile[item.field as keyof UserProfile] as string} onChange={(v) => updateRootField(item.field as keyof UserProfile, v as any)}
+                      options={item.options} />
                   ) : (
                     <input type="number" value={editedProfile[item.field as keyof UserProfile] as string | number || ''} onChange={(e) => updateRootField(item.field as keyof UserProfile, item.field === 'age' && !e.target.value ? undefined : Number(e.target.value) as never)}
                       className="w-full px-4 py-2 bg-secondary border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary text-foreground transition-all" />
@@ -171,15 +170,15 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">{t.savingPriority} ({t.optional})</label>
+                <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">{t.savingPriority} <span className="text-destructive">*</span></label>
                 {isEditing ? (
-                  <select value={editedProfile.preferences.savingPriority} onChange={(e) => updatePreference('savingPriority', e.target.value as SavingPreference)}
-                    className="w-full px-4 py-2 bg-secondary border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary text-xs text-foreground transition-all">
-                    <option value="not_specified">{t.not_specified}</option>
-                    <option value="Low">{t.low}</option>
-                    <option value="Medium">{t.medium}</option>
-                    <option value="High">{t.high}</option>
-                  </select>
+                  <CustomSelect value={editedProfile.preferences.savingPriority} onChange={(v) => updatePreference('savingPriority', v as SavingPreference)}
+                    options={[
+                      { value: 'not_specified', label: t.not_specified },
+                      { value: 'Low', label: t.low },
+                      { value: 'Medium', label: t.medium },
+                      { value: 'High', label: t.high },
+                    ]} />
                 ) : (
                   <div className="px-4 py-2 bg-accent text-accent-foreground rounded-xl font-bold inline-block border border-accent text-xs">
                     {t[profile.preferences.savingPriority.toLowerCase() as keyof typeof t] || profile.preferences.savingPriority}
@@ -187,15 +186,15 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">{t.riskTolerance} ({t.optional})</label>
+                <label className="block text-xs font-black text-muted-foreground uppercase tracking-widest mb-3">{t.riskTolerance} <span className="text-destructive">*</span></label>
                 {isEditing ? (
-                  <select value={editedProfile.preferences.riskTolerance} onChange={(e) => updatePreference('riskTolerance', e.target.value as RiskTolerance)}
-                    className="w-full px-4 py-2 bg-secondary border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary text-xs text-foreground transition-all">
-                    <option value="not_specified">{t.not_specified}</option>
-                    <option value="Low">{t.low}</option>
-                    <option value="Medium">{t.medium}</option>
-                    <option value="High">{t.high}</option>
-                  </select>
+                  <CustomSelect value={editedProfile.preferences.riskTolerance} onChange={(v) => updatePreference('riskTolerance', v as RiskTolerance)}
+                    options={[
+                      { value: 'not_specified', label: t.not_specified },
+                      { value: 'Low', label: t.low },
+                      { value: 'Medium', label: t.medium },
+                      { value: 'High', label: t.high },
+                    ]} />
                 ) : (
                   <div className="px-4 py-2 bg-secondary text-foreground rounded-xl font-bold inline-block border border-border text-xs">
                     {t[profile.preferences.riskTolerance.toLowerCase() as keyof typeof t] || profile.preferences.riskTolerance}
