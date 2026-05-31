@@ -38,9 +38,21 @@ interface SidebarContentProps {
 
 const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setTheme, onLogout, onProfileUpdate }) => {
   const t = translations[lang];
-  const [page, setPage] = useState<Page>('expenses');
+  const [page, setPage] = useState<Page>(() => {
+    const saved = localStorage.getItem('mudaber_active_page');
+    return (saved as Page) || 'expenses';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop collapse to icons-only
+
+  React.useEffect(() => {
+    localStorage.setItem('mudaber_active_page', page);
+  }, [page]);
+
+  const handleLogoutClick = () => {
+    localStorage.removeItem('mudaber_active_page');
+    onLogout();
+  };
 
   const navItems: { id: Page; label: string; icon: React.ElementType; color: string }[] = [
     { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard, color: 'text-primary' },
@@ -137,7 +149,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
                   <p className="text-[10px] text-muted-foreground truncate">{profile.account.email}</p>
                 </div>
               </button>
-              <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-destructive bg-destructive/10 rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all">
+              <button onClick={handleLogoutClick} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-destructive bg-destructive/10 rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all">
                 <LogOut className="w-4 h-4" />{t.logout}
               </button>
             </>
@@ -146,7 +158,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
               <button onClick={() => { setPage('profile'); setSidebarOpen(false); }} title={t.profile} className="w-full flex justify-center p-2 rounded-xl hover:bg-secondary/50 transition-all">
                
               </button>
-              <button onClick={onLogout} title={t.logout} className="w-full flex justify-center p-2 text-destructive bg-destructive/10 rounded-xl hover:bg-destructive/20 transition-all">
+              <button onClick={handleLogoutClick} title={t.logout} className="w-full flex justify-center p-2 text-destructive bg-destructive/10 rounded-xl hover:bg-destructive/20 transition-all">
                 <LogOut className="w-4 h-4" />
               </button>
             </>
