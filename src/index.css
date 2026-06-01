@@ -416,3 +416,23 @@ select:focus,
 .page-enter {
   animation: fadeIn 0.4s ease-out, slideUp 0.4s ease-out;
 }
+
+/* Custom vibrant high-contrast colors for dark summary cards */
+.text-budget-green {
+  color: #34d399 !important; /* Vibrant emerald green for text */
+}
+.text-budget-red {
+  color: #fb7185 !important; /* Vibrant rose/red for text */
+}
+.bg-budget-green-btn {
+  background-color: rgba(52, 211, 153, 0.15) !important;
+}
+.bg-budget-green-btn:hover {
+  background-color: rgba(52, 211, 153, 0.25) !important;
+}
+.bg-budget-red-btn {
+  background-color: rgba(251, 113, 133, 0.15) !important;
+}
+.bg-budget-red-btn:hover {
+  background-color: rgba(251, 113, 133, 0.25) !important;
+}

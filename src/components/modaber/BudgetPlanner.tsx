@@ -292,12 +292,12 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="opacity-60">{t.fixedCosts}</span>
-                <span className="text-destructive font-bold">-{fn(totalFixed, lang)} {t.currency}</span>
+                <span className="text-budget-red font-bold">-{fn(totalFixed, lang)} {t.currency}</span>
               </div>
               <hr className="border-background/20" />
               <div className="flex justify-between items-end">
                 <span className="text-xs font-bold uppercase opacity-50">{t.bufferFund}</span>
-                <span className={`text-2xl font-black ${remainingCash < 0 ? 'text-destructive' : 'text-primary'}`}>
+                <span className={`text-2xl font-black ${remainingCash < 0 ? 'text-budget-red' : 'text-budget-green'}`}>
                   {fn(remainingCash.toFixed(0), lang)} {t.currency}
                 </span>
               </div>
@@ -343,11 +343,11 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                           }
                         }
                       }}
-                        className="w-6 h-6 rounded-lg bg-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/30 transition-colors">
+                        className="w-6 h-6 rounded-lg bg-budget-red-btn text-budget-red flex items-center justify-center transition-colors">
                         <Minus className="w-3 h-3" />
                       </button>
                       
-                      <span className={`text-xs font-black w-24 text-center ${(adjustments[item.key] || 0) > 0 ? 'text-primary' : (adjustments[item.key] || 0) < 0 ? 'text-destructive' : 'opacity-70'}`}>
+                      <span className={`text-xs font-black w-24 text-center ${(adjustments[item.key] || 0) > 0 ? 'text-budget-green' : (adjustments[item.key] || 0) < 0 ? 'text-budget-red' : 'opacity-70'}`}>
                         {fn(Math.round(item.amount + (adjustments[item.key] || 0)), lang)} {t.currency}
                       </span>
                       
@@ -379,7 +379,7 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                           }
                         }
                       }}
-                        className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors">
+                        className="w-6 h-6 rounded-lg bg-budget-green-btn text-budget-green flex items-center justify-center transition-colors">
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
