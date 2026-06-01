@@ -316,8 +316,22 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                   <div key={item.key} className="flex items-center justify-between gap-2">
                     <span className="text-[11px] font-bold truncate flex-1 opacity-70">{item.category}</span>
                     <div className="flex items-center gap-1">
-                      {item.key !== 'optional' && (
-                        <button onClick={() => {
+                      <button onClick={() => {
+                        if (item.key === 'optional') {
+                          const currentOptional = item.amount + (adjustments.optional || 0);
+                          const step = Math.min(50, currentOptional);
+                          if (step > 0) {
+                            const others = allocations.filter(a => a.key !== 'optional');
+                            const perOther = others.length > 0 ? Math.round(step / others.length) : 0;
+                            setAdjustments(prev => {
+                              const next = { ...prev, optional: (prev.optional || 0) - step };
+                              others.forEach(o => {
+                                next[o.key] = (prev[o.key] || 0) + perOther;
+                              });
+                              return next;
+                            });
+                          }
+                        } else {
                           const currentAmount = item.amount + (adjustments[item.key] || 0);
                           const step = Math.min(50, currentAmount);
                           if (step > 0) {
@@ -327,18 +341,32 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                               optional: (prev.optional || 0) + step,
                             }));
                           }
-                        }}
-                          className="w-6 h-6 rounded-lg bg-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/30 transition-colors">
-                          <Minus className="w-3 h-3" />
-                        </button>
-                      )}
+                        }
+                      }}
+                        className="w-6 h-6 rounded-lg bg-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/30 transition-colors">
+                        <Minus className="w-3 h-3" />
+                      </button>
                       
                       <span className={`text-xs font-black w-16 text-center ${(adjustments[item.key] || 0) > 0 ? 'text-primary' : (adjustments[item.key] || 0) < 0 ? 'text-destructive' : 'opacity-50'}`}>
                         {(adjustments[item.key] || 0) > 0 ? '+' : ''}{fn(adjustments[item.key] || 0, lang)}
                       </span>
                       
-                      {item.key !== 'optional' && (
-                        <button onClick={() => {
+                      <button onClick={() => {
+                        if (item.key === 'optional') {
+                          const others = allocations.filter(a => a.key !== 'optional');
+                          const step = 50;
+                          const perOther = others.length > 0 ? Math.round(step / others.length) : 0;
+                          const canSubtract = others.every(o => (o.amount + (adjustments[o.key] || 0)) >= perOther);
+                          if (canSubtract) {
+                            setAdjustments(prev => {
+                              const next = { ...prev, optional: (prev.optional || 0) + step };
+                              others.forEach(o => {
+                                next[o.key] = (prev[o.key] || 0) - perOther;
+                              });
+                              return next;
+                            });
+                          }
+                        } else {
                           const optionalItem = allocations.find(a => a.key === 'optional');
                           const optionalAmount = optionalItem ? (optionalItem.amount + (adjustments.optional || 0)) : 0;
                           const step = Math.min(50, optionalAmount);
@@ -349,11 +377,11 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                               optional: (prev.optional || 0) - step,
                             }));
                           }
-                        }}
-                          className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors">
-                          <Plus className="w-3 h-3" />
-                        </button>
-                      )}
+                        }
+                      }}
+                        className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors">
+                        <Plus className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 ))}
