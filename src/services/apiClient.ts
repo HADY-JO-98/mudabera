@@ -228,6 +228,9 @@ export const budgetApi = {
   getOptimizationScore() {
     return apiClient.get('/api/Budget/optimization-score', getAuthHeaders());
   },
+  reallocate(allocations: { category: string; amount: number; percentage: number }[]) {
+    return apiClient.put('/api/Budget/reallocate', allocations, getAuthHeaders());
+  },
 };
 
 // ─── Expense API ───────────────────────────────────────────────────────────────
