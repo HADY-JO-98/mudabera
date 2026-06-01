@@ -347,8 +347,8 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                         <Minus className="w-3 h-3" />
                       </button>
                       
-                      <span className={`text-xs font-black w-16 text-center ${(adjustments[item.key] || 0) > 0 ? 'text-primary' : (adjustments[item.key] || 0) < 0 ? 'text-destructive' : 'opacity-50'}`}>
-                        {(adjustments[item.key] || 0) > 0 ? '+' : ''}{fn(adjustments[item.key] || 0, lang)}
+                      <span className={`text-xs font-black w-24 text-center ${(adjustments[item.key] || 0) !== 0 ? 'text-primary' : 'text-foreground opacity-70'}`}>
+                        {fn(Math.round(item.amount + (adjustments[item.key] || 0)), lang)} {t.currency}
                       </span>
                       
                       <button onClick={() => {
