@@ -59,7 +59,8 @@ const Investments: React.FC<InvestmentsProps> = ({ profile, lang }) => {
   }, [lang]);
 
   const totalIncome = profile.monthlySalary;
-  const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
+  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
+                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
   const surplus = totalIncome - totalFixed;
   const stability = surplus / totalIncome > 0.2;
 

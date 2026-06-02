@@ -159,7 +159,8 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
   });
   const totalToday = todayExpenses.reduce((s, e) => s + e.amount, 0);
 
-  const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
+  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
+                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
   const budget = profile.monthlySalary - totalFixed;
   const remaining = budget - totalThisMonth;
   const usagePercent = budget > 0 ? Math.min((totalThisMonth / budget) * 100, 100) : 0;
@@ -276,8 +277,17 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
               <div className="relative">
                 <input
                   type="number"
+                  min="0"
+                  step="any"
                   value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val.includes('-')) {
+                      setAmount(val.replace(/-/g, ''));
+                    } else {
+                      setAmount(val);
+                    }
+                  }}
                   placeholder="0"
                   className="w-full px-4 py-3 bg-secondary rounded-xl text-foreground placeholder-muted-foreground text-sm border border-border focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none transition-all"
                 />

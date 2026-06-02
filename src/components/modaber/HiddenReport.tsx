@@ -16,7 +16,8 @@ const HiddenReport: React.FC<HiddenReportProps> = ({ profile, lang }) => {
     isAr ? extra : { textTransform: 'uppercase', letterSpacing: 2, ...extra };
   const upperTight = (extra: React.CSSProperties = {}): React.CSSProperties =>
     isAr ? extra : { textTransform: 'uppercase', letterSpacing: 1, ...extra };
-  const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
+  const totalFixed = ((Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0)) +
+                     ((Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0));
   const totalOptional = (Object.values(profile.optionalExpenses) as number[]).reduce((a, b) => a + b, 0);
   const totalDebts = profile.debts.reduce((sum, d) => sum + d.monthlyAmount, 0);
   const availableIncome = profile.monthlySalary - totalFixed - totalDebts;

@@ -49,6 +49,8 @@ const getStorageKey = (email: string) => `modaber_budget_${email}`;
 
 const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   const t = translations[lang];
+  const [apiTotalIncome, setApiTotalIncome] = useState<number | null>(null);
+  const [backendPlan, setBackendPlan] = useState<(BudgetAllocation & { key: string })[] | null>(null);
   const [allocations, setAllocations] = useState<(BudgetAllocation & { key: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -57,8 +59,10 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   const [showAdjust, setShowAdjust] = useState(false);
   const initializedRef = useRef(false);
 
-  const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
-  const available = profile.monthlySalary - totalFixed;
+  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
+                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
+  const available = apiTotalIncome ?? (profile.monthlySalary - totalFixed);
+  const totalIncome = apiTotalIncome ? (apiTotalIncome + totalFixed) : profile.monthlySalary;
 
   // Build allocations from percentages/amounts with current language
   const buildAllocations = useCallback((stored?: StoredBudget) => {
@@ -80,9 +84,9 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     apiAllocations.map((a: any) => ({
       key: a.category as string,
       category: CATEGORY_LABELS[a.category]?.[lang] ?? a.category,
-      amount: a.amount as number,
-      percentage: a.percentage as number,
-      advice: CATEGORY_ADVICE[a.category]?.[lang] ?? '',
+      amount: Number(a.amount ?? 0),
+      percentage: Number(a.percentage ?? 0),
+      advice: a.advice || (CATEGORY_ADVICE[a.category]?.[lang] ?? ''),
     })), [lang]);
 
   useEffect(() => {
@@ -90,15 +94,22 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
       const res = await budgetApi.getPlan();
       if (res.ok && res.data) {
         const data = res.data as any;
+        if (data?.totalIncome !== undefined && data?.totalIncome !== null) {
+          setApiTotalIncome(Number(data.totalIncome));
+        }
         if (data?.allocations?.length > 0) {
-          // Render exactly what the backend returns — no hardcoded category list
-          setAllocations(mapApiAllocations(data.allocations));
+          const mapped = mapApiAllocations(data.allocations);
+          setAllocations(mapped);
+          setBackendPlan(mapped);
         } else {
-          setAllocations(buildAllocations());
+          const defaults = buildAllocations();
+          setAllocations(defaults);
+          setBackendPlan(defaults);
         }
       } else {
-        // Fallback if no plan exists on backend yet
-        setAllocations(buildAllocations());
+        const defaults = buildAllocations();
+        setAllocations(defaults);
+        setBackendPlan(defaults);
       }
 
       const adj: Record<string, number> = {};
@@ -109,7 +120,7 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     };
     
     fetchBudget();
-  }, [profile.account.email, buildAllocations]);
+  }, [profile.account.email, buildAllocations, mapApiAllocations]);
 
   // When language changes, re-translate labels & advice (keep amounts)
   useEffect(() => {
@@ -122,18 +133,18 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   }, [lang]);
 
   const handleSave = async () => {
-    // Trigger ML recalculation — backend reads all data from DB, no body needed
-    const res = await budgetApi.createPlan();
-    // Apply the returned ML plan to the UI immediately
-    if (res.ok && res.data) {
-      const data = res.data as any;
-      if (data?.allocations?.length > 0) {
-        setAllocations(mapApiAllocations(data.allocations));
-      }
+    const payload = allocations.map(a => ({
+      category: a.key,
+      amount: Math.round(a.amount),
+      percentage: a.percentage,
+    }));
+    const res = await budgetApi.reallocate(payload);
+    if (res.ok) {
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 3000);
+    } else {
+      console.error("Reallocate failed:", res.error);
     }
-
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 3000);
   };
 
   const handleRecalculate = () => {
@@ -151,27 +162,31 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
       }));
       setAllocations(finalAllocations);
 
-      // Auto-save: trigger backend recalculation (no body needed)
-      budgetApi.createPlan().catch(console.error);
+      // Auto-save: trigger backend reallocate to persist adjustments
+      const payload = finalAllocations.map(a => ({
+        category: a.key,
+        amount: Math.round(a.amount),
+        percentage: a.percentage,
+      }));
+      budgetApi.reallocate(payload).catch(console.error);
 
       const adj: Record<string, number> = {};
-      CATEGORY_KEYS.forEach(k => { adj[k] = 0; });
+      allocations.forEach(a => { adj[a.key] = 0; });
       setAdjustments(adj);
       setShowAdjust(false);
     } else {
       // Reset to defaults
       setIsRefreshing(true);
       setTimeout(() => {
-        setAllocations(buildAllocations());
+        setAllocations(backendPlan ?? buildAllocations());
         const adj: Record<string, number> = {};
-        CATEGORY_KEYS.forEach(k => { adj[k] = 0; });
+        allocations.forEach(a => { adj[a.key] = 0; });
         setAdjustments(adj);
         setIsRefreshing(false);
       }, 800);
     }
   };
 
-  const totalIncome = profile.monthlySalary;
   const totalAllocated = allocations.reduce((sum, item) => sum + item.amount, 0);
   const totalAdjustment = Object.values(adjustments).reduce((a, b) => a + b, 0);
   const remainingCash = totalIncome - totalFixed - totalAllocated + totalAdjustment;
@@ -245,13 +260,13 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                   </div>
                 </div>
                 <div className="text-end">
-                  <p className="font-bold text-foreground">{fn(item.amount.toFixed(0), lang)} {t.currency}</p>
+                  <p className="font-bold text-foreground">{fn(Number(item.amount ?? 0).toFixed(0), lang)} {t.currency}</p>
                   <p className="text-xs text-muted-foreground">{t.targetMonthly}</p>
                 </div>
               </div>
               <div className="relative pt-1">
                 <div className="overflow-hidden h-2.5 mb-4 text-xs flex rounded-full bg-secondary">
-                  <div style={{ width: `${item.percentage}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-primary-foreground justify-center ${categoryColors[idx % categoryColors.length]} rounded-full`}
+                  <div style={{ width: `${Math.min(100, Math.max(0, item.percentage ?? 0))}%` }} className={`shadow-none flex flex-col text-center whitespace-nowrap text-primary-foreground justify-center ${categoryColors[idx % categoryColors.length]} rounded-full`}
                     ref={(el) => {
                       if (el) { el.style.transition = 'width 1s ease-out'; }
                     }}></div>
@@ -260,7 +275,7 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
               {item.advice && (
                 <div className="flex items-start gap-2 bg-amber/8 p-3 rounded-xl border border-amber/15">
                   <Sparkles className="w-4 h-4 text-amber flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground leading-tight italic">"{item.advice}"</p>
+                  <p className="text-xs text-muted-foreground leading-tight italic">{item.advice}</p>
                 </div>
               )}
             </div>
@@ -278,12 +293,12 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="opacity-60">{t.fixedCosts}</span>
-                <span className="text-destructive font-bold">-{fn(totalFixed, lang)} {t.currency}</span>
+                <span className="text-budget-red font-bold">-{fn(totalFixed, lang)} {t.currency}</span>
               </div>
               <hr className="border-background/20" />
               <div className="flex justify-between items-end">
                 <span className="text-xs font-bold uppercase opacity-50">{t.bufferFund}</span>
-                <span className={`text-2xl font-black ${remainingCash < 0 ? 'text-destructive' : 'text-primary'}`}>
+                <span className={`text-2xl font-black ${remainingCash < 0 ? 'text-budget-red' : 'text-budget-green'}`}>
                   {fn(remainingCash.toFixed(0), lang)} {t.currency}
                 </span>
               </div>
@@ -303,32 +318,69 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
                     <span className="text-[11px] font-bold truncate flex-1 opacity-70">{item.category}</span>
                     <div className="flex items-center gap-1">
                       <button onClick={() => {
-                        const step = 50;
-                        const others = allocations.filter(a => a.key !== item.key);
-                        const perOther = others.length > 0 ? Math.round(step / others.length) : 0;
-                        setAdjustments(prev => {
-                          const next = { ...prev, [item.key]: (prev[item.key] || 0) - step };
-                          others.forEach(o => { next[o.key] = (next[o.key] || 0) + perOther; });
-                          return next;
-                        });
+                        if (item.key === 'optional') {
+                          const currentOptional = item.amount + (adjustments.optional || 0);
+                          const step = Math.min(50, currentOptional);
+                          if (step > 0) {
+                            const others = allocations.filter(a => a.key !== 'optional');
+                            const perOther = others.length > 0 ? Math.round(step / others.length) : 0;
+                            setAdjustments(prev => {
+                              const next = { ...prev, optional: (prev.optional || 0) - step };
+                              others.forEach(o => {
+                                next[o.key] = (prev[o.key] || 0) + perOther;
+                              });
+                              return next;
+                            });
+                          }
+                        } else {
+                          const currentAmount = item.amount + (adjustments[item.key] || 0);
+                          const step = Math.min(50, currentAmount);
+                          if (step > 0) {
+                            setAdjustments(prev => ({
+                              ...prev,
+                              [item.key]: (prev[item.key] || 0) - step,
+                              optional: (prev.optional || 0) + step,
+                            }));
+                          }
+                        }
                       }}
-                        className="w-6 h-6 rounded-lg bg-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/30 transition-colors">
+                        className="w-6 h-6 rounded-lg bg-budget-red-btn text-budget-red flex items-center justify-center transition-colors">
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className={`text-xs font-black w-16 text-center ${(adjustments[item.key] || 0) > 0 ? 'text-primary' : (adjustments[item.key] || 0) < 0 ? 'text-destructive' : 'opacity-50'}`}>
-                        {(adjustments[item.key] || 0) > 0 ? '+' : ''}{fn(adjustments[item.key] || 0, lang)}
+                      
+                      <span className={`text-xs font-black w-24 text-center ${(adjustments[item.key] || 0) > 0 ? 'text-budget-green' : (adjustments[item.key] || 0) < 0 ? 'text-budget-red' : 'opacity-70'}`}>
+                        {fn(Math.round(item.amount + (adjustments[item.key] || 0)), lang)} {t.currency}
                       </span>
+                      
                       <button onClick={() => {
-                        const step = 50;
-                        const others = allocations.filter(a => a.key !== item.key);
-                        const perOther = others.length > 0 ? Math.round(step / others.length) : 0;
-                        setAdjustments(prev => {
-                          const next = { ...prev, [item.key]: (prev[item.key] || 0) + step };
-                          others.forEach(o => { next[o.key] = (next[o.key] || 0) - perOther; });
-                          return next;
-                        });
+                        if (item.key === 'optional') {
+                          const others = allocations.filter(a => a.key !== 'optional');
+                          const step = 50;
+                          const perOther = others.length > 0 ? Math.round(step / others.length) : 0;
+                          const canSubtract = others.every(o => (o.amount + (adjustments[o.key] || 0)) >= perOther);
+                          if (canSubtract) {
+                            setAdjustments(prev => {
+                              const next = { ...prev, optional: (prev.optional || 0) + step };
+                              others.forEach(o => {
+                                next[o.key] = (prev[o.key] || 0) - perOther;
+                              });
+                              return next;
+                            });
+                          }
+                        } else {
+                          const optionalItem = allocations.find(a => a.key === 'optional');
+                          const optionalAmount = optionalItem ? (optionalItem.amount + (adjustments.optional || 0)) : 0;
+                          const step = Math.min(50, optionalAmount);
+                          if (step > 0) {
+                            setAdjustments(prev => ({
+                              ...prev,
+                              [item.key]: (prev[item.key] || 0) + step,
+                              optional: (prev.optional || 0) - step,
+                            }));
+                          }
+                        }
                       }}
-                        className="w-6 h-6 rounded-lg bg-primary/20 text-primary flex items-center justify-center hover:bg-primary/30 transition-colors">
+                        className="w-6 h-6 rounded-lg bg-budget-green-btn text-budget-green flex items-center justify-center transition-colors">
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>

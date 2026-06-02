@@ -1,7 +1,16 @@
 // Base URL for the .NET backend API
-// In development, Vite proxy handles /api → https://modaber.runasp.net
-// In production, set VITE_API_BASE_URL=https://modaber.runasp.net in your env
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+// Supports VITE_API_URL or VITE_API_BASE_URL with auto-fallbacks for local vs production
+let rawBaseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://modaber.runasp.net' : '');
+
+if (rawBaseUrl.endsWith('/')) {
+  rawBaseUrl = rawBaseUrl.slice(0, -1);
+}
+
+if (rawBaseUrl.endsWith('/api')) {
+  rawBaseUrl = rawBaseUrl.slice(0, -4);
+}
+
+const API_BASE_URL = rawBaseUrl;
 
 interface ApiResponse<T = unknown> {
   data: T | null;
@@ -228,6 +237,9 @@ export const budgetApi = {
   getOptimizationScore() {
     return apiClient.get('/api/Budget/optimization-score', getAuthHeaders());
   },
+  reallocate(allocations: { category: string; amount: number; percentage: number }[]) {
+    return apiClient.put('/api/Budget/reallocate', allocations, getAuthHeaders());
+  },
 };
 
 // ─── Expense API ───────────────────────────────────────────────────────────────
@@ -258,14 +270,20 @@ export const expenseApi = {
 // ─── Insights API ──────────────────────────────────────────────────────────────
 // NOTE: All Insights endpoints are POST on the backend (not GET)
 export const insightsApi = {
-  getStatus() {
-    return apiClient.post('/api/Insights/status', undefined, getAuthHeaders());
+  getStatus(lang?: string) {
+    const params = lang ? `?lang=${lang}&language=${lang}` : '';
+    const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
+    return apiClient.post(`/api/Insights/status${params}`, lang ? { lang, language: lang } : undefined, headers);
   },
-  getBasic() {
-    return apiClient.post('/api/Insights/basic', undefined, getAuthHeaders());
+  getBasic(lang?: string) {
+    const params = lang ? `?lang=${lang}&language=${lang}` : '';
+    const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
+    return apiClient.post(`/api/Insights/basic${params}`, lang ? { lang, language: lang } : undefined, headers);
   },
-  evaluateAchievements() {
-    return apiClient.post('/api/Insights/achievements/evaluate', undefined, getAuthHeaders());
+  evaluateAchievements(lang?: string) {
+    const params = lang ? `?lang=${lang}&language=${lang}` : '';
+    const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
+    return apiClient.post(`/api/Insights/achievements/evaluate${params}`, lang ? { lang, language: lang } : undefined, headers);
   },
 };
 

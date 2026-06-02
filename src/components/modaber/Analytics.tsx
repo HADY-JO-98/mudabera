@@ -29,7 +29,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
   React.useEffect(() => {
     const fetchAchievements = async () => {
       try {
-        const res = await insightsApi.evaluateAchievements();
+        const res = await insightsApi.evaluateAchievements(lang);
         if (res.ok && res.data) {
           const d = res.data as any;
           if (Array.isArray(d.all_achievements)) {
@@ -43,7 +43,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
       }
     };
     fetchAchievements();
-  }, []);
+  }, [lang]);
 
   const reductionData = [
     { category: t.electricity, reduction: fn(12, lang), status: t.stable, color: 'text-sky' },
