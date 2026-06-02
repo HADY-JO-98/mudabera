@@ -307,7 +307,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
               {p.name}
             </span>
-            <span className="font-bold text-xs text-foreground">{fn(p.value, lang)} {t.currency}</span>
+            <span className="font-bold text-xs text-foreground">{fn(Number(p.value).toFixed(2), lang)} {t.currency}</span>
           </div>
         ))}
       </div>
