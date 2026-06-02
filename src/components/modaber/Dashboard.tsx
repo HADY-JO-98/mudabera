@@ -97,9 +97,11 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
     }
   };
 
-  const totalFixed = useMemo(() =>
-    (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0)
-  , [profile]);
+  const totalFixed = useMemo(() => {
+    const fixedSum = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
+    const optionalSum = (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
+    return fixedSum + optionalSum;
+  }, [profile]);
 
   interface MonthlyTotal { month: number; year: number; total: number; }
   interface ExpensesState {

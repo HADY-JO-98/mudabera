@@ -159,7 +159,8 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
   });
   const totalToday = todayExpenses.reduce((s, e) => s + e.amount, 0);
 
-  const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
+  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
+                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
   const budget = profile.monthlySalary - totalFixed;
   const remaining = budget - totalThisMonth;
   const usagePercent = budget > 0 ? Math.min((totalThisMonth / budget) * 100, 100) : 0;

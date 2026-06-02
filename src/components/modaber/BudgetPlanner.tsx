@@ -59,7 +59,8 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   const [showAdjust, setShowAdjust] = useState(false);
   const initializedRef = useRef(false);
 
-  const totalFixed = (Object.values(profile.fixedExpenses) as number[]).reduce((a, b) => a + b, 0);
+  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
+                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
   const available = apiTotalIncome ?? (profile.monthlySalary - totalFixed);
   const totalIncome = apiTotalIncome ? (apiTotalIncome + totalFixed) : profile.monthlySalary;
 
