@@ -1,7 +1,16 @@
 // Base URL for the .NET backend API
-// In development, Vite proxy handles /api → https://modaber.runasp.net
-// In production, set VITE_API_BASE_URL=https://modaber.runasp.net in your env
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+// Supports VITE_API_URL or VITE_API_BASE_URL with auto-fallbacks for local vs production
+let rawBaseUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://modaber.runasp.net' : '');
+
+if (rawBaseUrl.endsWith('/')) {
+  rawBaseUrl = rawBaseUrl.slice(0, -1);
+}
+
+if (rawBaseUrl.endsWith('/api')) {
+  rawBaseUrl = rawBaseUrl.slice(0, -4);
+}
+
+const API_BASE_URL = rawBaseUrl;
 
 interface ApiResponse<T = unknown> {
   data: T | null;
