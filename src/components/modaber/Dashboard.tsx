@@ -147,8 +147,8 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
       setInsightsLoading(true);
       const expRes = await expenseApi.getAll(1, 500);
       const budRes = await budgetApi.getPlan();
-      const insightsRes = await insightsApi.getBasic();
-      const statusRes = await insightsApi.getStatus();
+      const insightsRes = await insightsApi.getBasic(lang);
+      const statusRes = await insightsApi.getStatus(lang);
 
       const raw: ExpenseRecord[] = expRes.ok && expRes.data
         ? Array.isArray(expRes.data)
