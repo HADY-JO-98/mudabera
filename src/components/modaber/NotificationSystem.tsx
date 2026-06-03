@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Bell, X, AlertTriangle, TrendingUp, TrendingDown, Wallet, ShoppingCart, Target, CheckCircle2 } from 'lucide-react';
 import { Language } from '../../types';
 import { translations } from '../../translations';
@@ -35,32 +36,54 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ lang }) => {
   const markRead = useMarkAlertRead();
   const deleteAlert = useDeleteAlert();
   const [showAll, setShowAll] = useState(false);
-  // silence unused var from old pattern
-
+  const qc = useQueryClient();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
     if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden'; // For iOS
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
+      document.addEventListener('mousedown', handleClickOutside);
     }
-    return () => { 
-      document.body.style.overflow = ''; 
-      document.documentElement.style.overflow = '';
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+
+
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const visibleNotifications = notifications;
 
   const markAllRead = async () => {
     const unread = notifications.filter(n => !n.read);
+    if (unread.length === 0) return;
+
     setShowAll(true);
-    for (const n of unread) {
-      await markRead.mutateAsync(n.id as unknown as number).catch(console.error);
+
+    // Batch update local React Query cache optimistically to 'read'
+    const ALERTS_KEY = ['alerts'] as const;
+    const previousAlerts = qc.getQueryData<AppNotification[]>(ALERTS_KEY);
+    if (previousAlerts) {
+      qc.setQueryData<AppNotification[]>(
+        ALERTS_KEY,
+        previousAlerts.map(alert => ({ ...alert, read: true }))
+      );
     }
+
+    // Call individual API endpoints in parallel
+    try {
+      await Promise.all(
+        unread.map(n => markRead.mutateAsync(n.id as unknown as number))
+      );
+    } catch (e) {
+      console.error("Failed to mark some alerts as read", e);
+    }
+
     refetch();
   };
 
@@ -79,7 +102,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ lang }) => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         onClick={() => { setIsOpen(!isOpen); if (!isOpen) setShowAll(false); }}
         className="relative glass p-2.5 rounded-xl hover:scale-105 transition-all border border-border shadow-sm"
@@ -94,7 +117,7 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ lang }) => {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-foreground/40 sm:bg-transparent" onClick={() => setIsOpen(false)} />
+          <div className="fixed inset-0 z-40 bg-foreground/40 sm:hidden" onClick={() => setIsOpen(false)} />
           <div
             className="fixed inset-x-4 top-24 sm:absolute sm:inset-auto sm:end-0 sm:top-12 sm:w-[380px] bg-card rounded-2xl border border-border shadow-2xl z-50 overflow-hidden"
             style={{ animation: 'scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
@@ -130,7 +153,12 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ lang }) => {
                 visibleNotifications.map((notif, idx) => (
                   <div
                     key={notif.id}
-                    className={`p-4 border-b border-border/50 flex gap-3 hover:bg-secondary/50 transition-all group ${!notif.read ? 'bg-primary/5' : ''}`}
+                    onClick={() => {
+                      if (!notif.read) {
+                        markRead.mutate(notif.id as unknown as number);
+                      }
+                    }}
+                    className={`p-4 border-b border-border/50 flex gap-3 hover:bg-secondary/50 transition-all group cursor-pointer ${!notif.read ? 'bg-primary/5' : ''}`}
                     style={{ animation: `slideUp 0.3s ease-out ${0.05 * idx}s both` }}
                   >
                     <div className="flex-shrink-0 mt-0.5">{getIcon(notif.type)}</div>

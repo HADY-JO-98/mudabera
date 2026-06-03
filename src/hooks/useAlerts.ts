@@ -9,9 +9,33 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
   const alerts: AppNotification[] = [];
   const now = new Date().toISOString();
 
+  const readList: string[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('modaber_read_fallback_alerts') || '[]');
+    } catch {
+      return [];
+    }
+  })();
+
+  const deletedList: string[] = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('modaber_deleted_fallback_alerts') || '[]');
+    } catch {
+      return [];
+    }
+  })();
+
+  const addAlert = (alert: Omit<AppNotification, 'read'>) => {
+    if (deletedList.includes(alert.id)) return;
+    alerts.push({
+      ...alert,
+      read: readList.includes(alert.id)
+    });
+  };
+
   // 0. Add System/API Error Notification at the top
   if (apiError) {
-    alerts.push({
+    addAlert({
       id: 'fb-system-error',
       type: 'budget',
       title: lang === 'ar' ? 'تنبيه النظام (الذكاء الاصطناعي)' : 'System Alert (AI Engine)',
@@ -19,34 +43,29 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
         ? 'فشل الاتصال بمحرك التنبؤات والتحليلات الذكي (ML API). تم تفعيل نظام النصائح المالي المحلي مؤقتاً.'
         : 'Could not connect to the smart prediction engine. Localized financial advice system is active.',
       timestamp: now,
-      read: false
     });
   }
 
   if (!profile) {
-    return [
-      ...alerts,
-      {
-        id: 'fb-welcome',
-        type: 'saving',
-        title: lang === 'ar' ? 'مرحبًا بك في مدبّر!' : 'Welcome to Modaber!',
-        message: lang === 'ar' 
-          ? 'ابدأ بإكمال بياناتك وتحديد ميزانيتك لنتمكن من تزويدك بأدق النصائح المالية والذكية.'
-          : 'Start by filling your profile and planning your budget to receive tailored smart insights.',
-        timestamp: now,
-        read: false
-      },
-      {
-        id: 'fb-rule-50',
-        type: 'budget',
-        title: lang === 'ar' ? 'نصيحة الميزانية الذكية' : 'Smart Budgeting Tip',
-        message: lang === 'ar'
-          ? 'قسّم دخلك دائمًا باتباع قاعدة 50/30/20: 50% للاحتياجات، 30% للرغبات، و20% للادخار والاستثمار.'
-          : 'Always divide your income using the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings and investing.',
-        timestamp: now,
-        read: false
-      }
-    ];
+    addAlert({
+      id: 'fb-welcome',
+      type: 'saving',
+      title: lang === 'ar' ? 'مرحبًا بك في مدبّر!' : 'Welcome to Modaber!',
+      message: lang === 'ar' 
+        ? 'ابدأ بإكمال بياناتك وتحديد ميزانيتك لنتمكن من تزويدك بأدق النصائح المالية والذكية.'
+        : 'Start by filling your profile and planning your budget to receive tailored smart insights.',
+      timestamp: now,
+    });
+    addAlert({
+      id: 'fb-rule-50',
+      type: 'budget',
+      title: lang === 'ar' ? 'نصيحة الميزانية الذكية' : 'Smart Budgeting Tip',
+      message: lang === 'ar'
+        ? 'قسّم دخلك دائمًا باتباع قاعدة 50/30/20: 50% للاحتياجات، 30% للرغبات، و20% للادخار والاستثمار.'
+        : 'Always divide your income using the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings and investing.',
+      timestamp: now,
+    });
+    return alerts;
   }
 
   // Calculate Fixed Costs
@@ -55,7 +74,7 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
 
   // 1. High Fixed Costs Alert
   if (salary > 0 && fixedSum / salary > 0.5) {
-    alerts.push({
+    addAlert({
       id: 'fb-fixed-high',
       type: 'budget',
       title: lang === 'ar' ? 'التزامات ثابتة مرتفعة' : 'High Fixed Commitments',
@@ -63,14 +82,13 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
         ? `التزاماتك الثابتة (${Math.round((fixedSum / salary) * 100)}% من دخلك) تتجاوز الحد الموصى به (50%). فكر في مراجعة الاشتراكات أو ترشيد استهلاك الطاقة.`
         : `Your fixed expenses (${Math.round((fixedSum / salary) * 100)}% of your income) exceed the recommended 50% limit. Consider reviewing subscriptions or optimizing utilities.`,
       timestamp: now,
-      read: false
     });
   }
 
   // 2. Debt Alert
   if (profile.debts && profile.debts.length > 0) {
     const totalDebt = profile.debts.reduce((a, b) => a + b.monthlyAmount, 0);
-    alerts.push({
+    addAlert({
       id: 'fb-debt-info',
       type: 'budget',
       title: lang === 'ar' ? 'خطة إدارة الديون' : 'Debt Management Plan',
@@ -78,13 +96,12 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
         ? `لديك أقساط ديون شهرية بقيمة ${totalDebt} لـ ${profile.debts.length} من الالتزامات. ركز على تصفية الديون ذات الأولوية أو الفائدة الأعلى أولاً.`
         : `You have monthly debt payments of ${totalDebt} for ${profile.debts.length} obligations. Focus on paying off the highest priority or interest debts first.`,
       timestamp: now,
-      read: false
     });
   }
 
   // 3. Emergency Fund Alert
   const emergencyPct = profile.preferences?.emergencyFundPercentage ?? 10;
-  alerts.push({
+  addAlert({
     id: 'fb-emergency-fund',
     type: 'saving',
     title: lang === 'ar' ? 'بناء صندوق الطوارئ' : 'Emergency Fund Goal',
@@ -92,13 +109,12 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
       ? `هدف صندوق الطوارئ الخاص بك هو ${emergencyPct}% من الدخل. نوصي بالاحتفاظ بما يعادل 3 إلى 6 أشهر من نفقاتك المعيشية لمواجهة أي ظرف طارئ بسلام.`
       : `Your emergency fund target is ${emergencyPct}% of your income. We recommend holding 3 to 6 months' worth of living expenses to safely navigate unexpected situations.`,
     timestamp: now,
-    read: false
   });
 
   // 4. Investment Recommendation based on Risk Tolerance
   const risk = profile.preferences?.riskTolerance ?? 'Medium';
   if (risk === 'High') {
-    alerts.push({
+    addAlert({
       id: 'fb-invest-high',
       type: 'investment',
       title: lang === 'ar' ? 'استثمار ذو نمو مرتفع' : 'High-Growth Investing',
@@ -106,10 +122,9 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
         ? 'بما أن قدرتك على تحمل المخاطر عالية، يمكنك دراسة خيارات مثل الأسهم الفردية، أو صناديق الاستثمار المشتركة النشطة، أو الذهب للتحوط من التضخم.'
         : 'Since your risk tolerance is high, you might want to look into individual stocks, active index mutual funds, or gold as inflation hedges.',
       timestamp: now,
-      read: false
     });
   } else if (risk === 'Medium') {
-    alerts.push({
+    addAlert({
       id: 'fb-invest-med',
       type: 'investment',
       title: lang === 'ar' ? 'توزيع استثماري متوازن' : 'Balanced Investment Mix',
@@ -117,10 +132,9 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
         ? 'تقييمك للمخاطر متوازن. ابحث عن صناديق المؤشرات المتداولة (ETFs) أو الصناديق الاستثمارية المتنوعة التي تضمن نمواً جيداً بمخاطر متوسطة.'
         : 'Your risk profile is balanced. Look into diversified index ETFs or mutual funds that offer solid growth with moderate risk.',
       timestamp: now,
-      read: false
     });
   } else {
-    alerts.push({
+    addAlert({
       id: 'fb-invest-low',
       type: 'investment',
       title: lang === 'ar' ? 'حفظ الأصول الآمنة' : 'Conservative Asset Saving',
@@ -128,12 +142,11 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
         ? 'بناءً على تفضيلك للمخاطر المنخفضة، ننصحك بالتركيز على الودائع لأجل، أو الصكوك الإسلامية، أو حسابات الادخار ذات العوائد المرتفعة لضمان أمان رأس المال.'
         : 'Based on your low risk preference, we suggest looking into high-yield savings accounts, time deposits, or low-risk government sukuks to secure principal.',
       timestamp: now,
-      read: false
     });
   }
 
   // 5. Smart Shopping Insight
-  alerts.push({
+  addAlert({
     id: 'fb-shopping-smart',
     type: 'shopping',
     title: lang === 'ar' ? 'التسوق بموجب القائمة الذكية' : 'Shop with Smart List',
@@ -141,7 +154,6 @@ const generateFallbackAlerts = (profile: UserProfile | null, lang: 'ar' | 'en', 
       ? 'لتوفير ما يصل إلى 25% من فاتورة البقالة، تجنب التسوق دون قائمة محددة سلفاً وتأكد من شراء السلع الأساسية أولاً في مواسم العروض.'
       : 'To save up to 25% on your groceries bill, avoid shopping without a predefined smart list and buy essentials first during seasonal discounts.',
     timestamp: now,
-    read: false
   });
 
   return alerts;
@@ -184,7 +196,39 @@ export const useAlerts = () =>
 export const useMarkAlertRead = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => alertApi.markRead(id),
+    mutationFn: async (id: number | string) => {
+      if (typeof id === 'string' && id.startsWith('fb-')) {
+        try {
+          const readList = JSON.parse(localStorage.getItem('modaber_read_fallback_alerts') || '[]');
+          if (!readList.includes(id)) {
+            readList.push(id);
+            localStorage.setItem('modaber_read_fallback_alerts', JSON.stringify(readList));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        return { ok: true };
+      }
+      return alertApi.markRead(id as number);
+    },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ALERTS_KEY });
+      const previousAlerts = qc.getQueryData<AppNotification[]>(ALERTS_KEY);
+      if (previousAlerts) {
+        qc.setQueryData<AppNotification[]>(
+          ALERTS_KEY,
+          previousAlerts.map(alert => 
+            String(alert.id) === String(id) ? { ...alert, read: true } : alert
+          )
+        );
+      }
+      return { previousAlerts };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousAlerts) {
+        qc.setQueryData(ALERTS_KEY, context.previousAlerts);
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ALERTS_KEY }),
   });
 };
@@ -192,7 +236,37 @@ export const useMarkAlertRead = () => {
 export const useDeleteAlert = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => alertApi.delete(id),
+    mutationFn: async (id: number | string) => {
+      if (typeof id === 'string' && id.startsWith('fb-')) {
+        try {
+          const deletedList = JSON.parse(localStorage.getItem('modaber_deleted_fallback_alerts') || '[]');
+          if (!deletedList.includes(id)) {
+            deletedList.push(id);
+            localStorage.setItem('modaber_deleted_fallback_alerts', JSON.stringify(deletedList));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        return { ok: true };
+      }
+      return alertApi.delete(id as number);
+    },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ALERTS_KEY });
+      const previousAlerts = qc.getQueryData<AppNotification[]>(ALERTS_KEY);
+      if (previousAlerts) {
+        qc.setQueryData<AppNotification[]>(
+          ALERTS_KEY,
+          previousAlerts.filter(alert => String(alert.id) !== String(id))
+        );
+      }
+      return { previousAlerts };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previousAlerts) {
+        qc.setQueryData(ALERTS_KEY, context.previousAlerts);
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ALERTS_KEY }),
   });
 };

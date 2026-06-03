@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from '../../types';
 import { Language } from '../../types';
 import { translations } from '../../translations';
-import { expenseApi } from '../../services/apiClient';
+import { expenseApi, budgetApi } from '../../services/apiClient';
 import { fn } from '../../utils/formatNumber';
 import {
   Mic, MicOff, Plus, Wallet, Coffee, Car, Zap, Home, ShoppingBag,
@@ -50,6 +50,17 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
   const [category, setCategory] = useState('other');
   const [isListening, setIsListening] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [apiTotalIncome, setApiTotalIncome] = useState<number | null>(null);
+
+  // Filters state
+  const [filterType, setFilterType] = useState<'week' | 'day' | 'month'>('week');
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    return `${today.getFullYear()}-${month}`;
+  });
+
   interface SpeechRecognitionType {
     stop: () => void; lang: string; continuous: boolean; interimResults: boolean;
     onresult: (event: { results: { transcript: string }[][] }) => void; onerror: () => void; onend: () => void; start: () => void;
@@ -75,14 +86,22 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
   ];
 
   useEffect(() => {
-    const fetchExpenses = async () => {
-      const res = await expenseApi.getAll(1, 100);
-      if (res.ok && res.data) {
-        const items = Array.isArray(res.data) ? res.data : (res.data as any).items || [];
+    const fetchData = async () => {
+      const resExp = await expenseApi.getAll(1, 100);
+      if (resExp.ok && resExp.data) {
+        const items = Array.isArray(resExp.data) ? resExp.data : (resExp.data as any).items || [];
         setExpenses(items);
       }
+
+      const resBud = await budgetApi.getPlan();
+      if (resBud.ok && resBud.data) {
+        const data = resBud.data as any;
+        if (data?.totalIncome !== undefined && data?.totalIncome !== null) {
+          setApiTotalIncome(Number(data.totalIncome));
+        }
+      }
     };
-    fetchExpenses();
+    fetchData();
   }, []);
 
   const handleAdd = async () => {
@@ -161,7 +180,7 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
 
   const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
                      (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
-  const budget = profile.monthlySalary - totalFixed;
+  const budget = apiTotalIncome ?? (profile.monthlySalary - totalFixed);
   const remaining = budget - totalThisMonth;
   const usagePercent = budget > 0 ? Math.min((totalThisMonth / budget) * 100, 100) : 0;
 
@@ -180,6 +199,48 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
   }, {} as Record<string, number>);
 
   const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+
+  const getStartOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const diff = (day + 1) % 7; // Days elapsed since last Saturday
+    const start = new Date(d);
+    start.setDate(d.getDate() - diff);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  };
+
+  const todayDate = new Date();
+  const startOfWeek = getStartOfWeek(todayDate);
+
+  const filteredExpenses = expenses.filter(exp => {
+    const expDate = new Date(exp.date);
+    
+    if (filterType === 'day') {
+      if (!selectedDate) return true;
+      const targetParts = selectedDate.split('-'); // [YYYY, MM, DD]
+      const targetYear = parseInt(targetParts[0], 10);
+      const targetMonth = parseInt(targetParts[1], 10) - 1;
+      const targetDay = parseInt(targetParts[2], 10);
+      
+      return expDate.getFullYear() === targetYear &&
+             expDate.getMonth() === targetMonth &&
+             expDate.getDate() === targetDay;
+    }
+    
+    if (filterType === 'month') {
+      if (!selectedMonth) return true;
+      const targetParts = selectedMonth.split('-'); // [YYYY, MM]
+      const targetYear = parseInt(targetParts[0], 10);
+      const targetMonth = parseInt(targetParts[1], 10) - 1;
+      
+      return expDate.getFullYear() === targetYear &&
+             expDate.getMonth() === targetMonth;
+    }
+    
+    // Default 'week'
+    return expDate >= startOfWeek;
+  });
 
   return (
     <div className="space-y-8 min-h-[calc(100vh-140px)]" style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -362,22 +423,77 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
 
         {/* Expense List */}
         <div className="lg:col-span-2 space-y-4">
-          <h3 className="text-lg font-bold text-foreground">{t.expRecentExpenses}</h3>
-          {expenses.length === 0 ? (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h3 className="text-lg font-bold text-foreground">{t.expRecentExpenses}</h3>
+            
+            {/* Filter controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setFilterType('week')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filterType === 'week' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-secondary text-muted-foreground hover:bg-accent'
+                }`}
+              >
+                {t.expFilterWeek}
+              </button>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilterType('day')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    filterType === 'day' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-secondary text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {t.expFilterDay}
+                </button>
+                {filterType === 'day' && (
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="bg-secondary border border-border rounded-xl px-2 py-1 text-xs font-bold text-foreground focus:outline-none focus:border-primary/50 transition-all cursor-pointer font-cairo"
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setFilterType('month')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    filterType === 'month' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-secondary text-muted-foreground hover:bg-accent'
+                  }`}
+                >
+                  {t.expFilterMonth}
+                </button>
+                {filterType === 'month' && (
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-secondary border border-border rounded-xl px-2 py-1 text-xs font-bold text-foreground focus:outline-none focus:border-primary/50 transition-all cursor-pointer font-cairo"
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {filteredExpenses.length === 0 ? (
             <div className="glass p-16 rounded-3xl text-center border border-dashed border-border">
               <div className="w-16 h-16 bg-secondary rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Receipt className="w-8 h-8 text-muted-foreground" />
               </div>
-              <p className="text-muted-foreground font-bold">{t.expNoExpenses}</p>
-              <p className="text-muted-foreground text-sm mt-1">{t.expNoExpensesHint}</p>
+              <p className="text-muted-foreground font-bold">{expenses.length === 0 ? t.expNoExpenses : t.expNoFilteredExpenses}</p>
+              {expenses.length === 0 && <p className="text-muted-foreground text-sm mt-1">{t.expNoExpensesHint}</p>}
             </div>
           ) : (
             <div className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pe-2">
-              {expenses.slice(0, 50).map((exp, idx) => {
+              {filteredExpenses.slice(0, 50).map((exp, idx) => {
                 const catKey = (exp.category || '').toLowerCase();
                 const conf = categoryConfig[catKey] || categoryConfig.other;
                 const CatIcon = conf.icon;
                 const catLabel = categories.find(c => c.id === catKey)?.label || exp.category;
+                const expDate = new Date(exp.date);
+                const isOldMonth = expDate.getMonth() !== todayDate.getMonth() || expDate.getFullYear() !== todayDate.getFullYear();
                 return (
                   <div key={exp.id}
                     className="glass p-4 rounded-2xl border border-border flex items-center gap-4 group hover:border-primary/30 hover:shadow-md transition-all duration-300"
@@ -386,7 +502,9 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
                       <CatIcon className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm truncate">{exp.description}</p>
+                      <p className={`text-sm ${isOldMonth ? 'text-muted-foreground line-through font-normal' : 'font-bold text-foreground'} truncate`}>
+                        {exp.description}
+                      </p>
                       <p className="text-[10px] text-muted-foreground">
                         {catLabel} • {formatDate(exp.date)}
                       </p>

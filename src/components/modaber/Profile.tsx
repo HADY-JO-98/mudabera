@@ -1,24 +1,33 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { UserProfile, MaritalStatus, LivingCostLevel, IncomeStability, SavingPreference, RiskTolerance, Debt, AnnualExpense } from '../../types';
 import { Language } from '../../types';
 import { translations } from '../../translations';
-import { User, Wallet, Home, Shield, Edit2, Save, X, CheckCircle2, Coffee, ChevronUp, ChevronDown, Plus, Minus, Trash2, CreditCard, Calendar, Download, Loader2 } from 'lucide-react';
+import { User, Wallet, Home, Shield, Edit2, Save, X, CheckCircle2, Coffee, ChevronUp, ChevronDown, Plus, Minus, Trash2, CreditCard, Calendar, Download, Loader2, AlertTriangle } from 'lucide-react';
 import { generateFullReport } from '../../utils/pdfGenerator';
 import { fn } from '../../utils/formatNumber';
 import CustomSelect from '../ui/custom-select';
+import { profileApi } from '../../services/apiClient';
 
 interface ProfileProps {
   profile: UserProfile;
   lang: Language;
   onUpdate: (updatedProfile: UserProfile) => void;
+  onLogout?: () => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
+const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate, onLogout }) => {
   const t = translations[lang];
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<UserProfile>({ ...profile });
   const [showSuccess, setShowSuccess] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleDownloadReport = async () => {
     setIsGenerating(true);
@@ -43,6 +52,25 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
     setIsEditing(false);
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 3000);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm !== 'Delete') return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await profileApi.delete();
+    if (res.ok) {
+      if (onLogout) {
+        onLogout();
+      } else {
+        localStorage.removeItem('modaber_auth_token');
+        localStorage.removeItem('modaber_refresh_token');
+        window.location.reload();
+      }
+    } else {
+      setDeleteError(res.error || (lang === 'ar' ? 'فشل حذف الحساب' : 'Failed to delete account'));
+      setDeleting(false);
+    }
   };
 
   const updateRootField = (field: keyof UserProfile, value: UserProfile[keyof UserProfile]) => setEditedProfile(prev => ({ ...prev, [field]: value }));
@@ -90,7 +118,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
           <h2 className="text-3xl font-black text-foreground font-cairo">{t.profile}</h2>
           <p className="text-muted-foreground">{t.manageParams}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {!isEditing ? (
             <>
               <button onClick={handleDownloadReport} disabled={isGenerating} className="flex items-center gap-2 px-6 py-3 glass border border-border text-muted-foreground rounded-2xl font-bold hover:bg-secondary hover:scale-105 active:scale-95 transition-all disabled:opacity-50">
@@ -103,6 +131,9 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
             </>
           ) : (
             <>
+              <button onClick={() => { setShowDeleteModal(true); setDeleteConfirm(''); setDeleteError(null); }} style={{ backgroundColor: 'hsl(var(--destructive))', color: '#fff' }} className="flex items-center gap-2 px-6 py-3 rounded-2xl font-bold hover:scale-105 active:scale-95 transition-all hover:opacity-90 shadow-lg">
+                <Trash2 className="w-4 h-4" /> {lang === 'ar' ? 'حذف الحساب' : 'Delete Account'}
+              </button>
               <button onClick={() => { setIsEditing(false); setEditedProfile({ ...profile }); }} className="flex items-center gap-2 px-6 py-3 glass border border-border text-muted-foreground rounded-2xl font-bold hover:bg-secondary hover:scale-105 active:scale-95 transition-all">
                 <X className="w-4 h-4" /> {t.cancel}
               </button>
@@ -369,6 +400,73 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate }) => {
           </div>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background border border-border w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6" style={{ animation: 'scaleUp 0.3s ease-out' }}>
+            {/* Header */}
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-destructive/10 rounded-2xl text-destructive">
+                <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-black dark:text-white font-cairo">
+                  {lang === 'ar' ? 'حذف الحساب' : 'Delete Account'}
+                </h3>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {lang === 'ar' 
+                  ? 'هل أنت متأكد من رغبتك في حذف حسابك؟ لا يمكن التراجع عن هذا الإجراء. للتأكيد، يرجى كتابة "Delete" في الحقل أدناه.' 
+                  : 'Are you sure you want to delete your account? This action cannot be undone. To confirm, please type "Delete" in the field below.'}
+              </p>
+              
+              <input
+                type="text"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder={lang === 'ar' ? 'اكتب "Delete" هنا' : 'Type "Delete" here'}
+                className="w-full px-4 py-3 bg-secondary rounded-xl text-foreground placeholder-muted-foreground text-sm border border-border focus:border-rose-500 focus:ring-1 focus:ring-rose-500/30 outline-none transition-all"
+              />
+
+              {deleteError && (
+                <p className="text-xs font-bold text-rose-500 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+                  {deleteError}
+                </p>
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteConfirm(''); setDeleteError(null); }}
+                disabled={deleting}
+                className="px-5 py-2.5 bg-secondary text-foreground hover:bg-accent rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirm !== 'Delete' || deleting}
+                style={{
+                  backgroundColor: 'hsl(var(--destructive))',
+                  color: '#fff',
+                  opacity: deleteConfirm === 'Delete' ? 1 : 0.4
+                }}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg hover:opacity-90 disabled:cursor-not-allowed"
+              >
+                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+                {lang === 'ar' ? 'حذف الحساب' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

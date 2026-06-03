@@ -3,7 +3,7 @@ import { UserProfile, PricePrediction } from '../../types';
 import { predictionApi, savedItemsApi } from '../../services/apiClient';
 import { translations } from '../../translations';
 import { Language } from '../../types';
-import { TrendingUp, TrendingDown, Minus, Clock, ShoppingCart, Percent, ChevronRight, Sparkles, BookmarkPlus, ExternalLink, Check } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Clock, ShoppingCart, Percent, ChevronRight, Sparkles, BookmarkPlus, ExternalLink, Check, Search, Filter } from 'lucide-react';
 import { formatPrice, fn } from '../../utils/formatNumber';
 import { translateProductName, translateAdvice } from '../../utils/productTranslations';
 
@@ -41,7 +41,9 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
   const [predictions, setPredictions] = useState<PricePrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
-  const [shopOpenIdx, setShopOpenIdx] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTrend, setSelectedTrend] = useState('all');
+  const [shopOpenItem, setShopOpenItem] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPredictions = async () => {
@@ -138,14 +140,11 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
   }, []);
 
   const handleSave = async (p: PricePrediction) => {
-    // Use the item name directly — translateProductName may return undefined for unknown items
     const enName = translateProductName(p.item, 'en') ?? p.item ?? '';
     if (!enName) return;
 
-    // Prevent duplicates
     if (savedSet.has(enName)) return;
 
-    // Save to backend — send ALL fields the schema defines, never undefined
     try {
       const res = await savedItemsApi.add({
         productName:    enName,
@@ -199,6 +198,15 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
     'hover:shadow-[0_20px_40px_-12px_hsl(var(--color-teal)/0.15)]',
   ];
 
+  const filteredPredictions = predictions.filter(p => {
+    if (!p?.item) return false;
+    const nameTranslated = translateProductName(p.item, lang) || '';
+    const matchesSearch = nameTranslated.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          p.item.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTrend = selectedTrend === 'all' || p.trend === selectedTrend;
+    return matchesSearch && matchesTrend;
+  });
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px]">
@@ -247,105 +255,138 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {predictions.map((p, idx) => {
-          if (!p?.item) return null; // skip malformed entries
-          const TrendIcon = getTrendIcon(p.trend);
-          const isSaved = savedSet.has(translateProductName(p.item, 'en') ?? p.item);
-          const isShopOpen = shopOpenIdx === idx;
-          return (
-            <div key={idx} className={`card-3d glass rounded-3xl border overflow-hidden group transition-all duration-300 ${isSaved ? 'border-primary/50 ring-2 ring-primary/20' : 'border-border hover:border-primary/30'} ${cardAccents[idx % cardAccents.length]}`}>
-              {/* Saved indicator */}
-              {isSaved && (
-                <div className="flex items-center gap-1.5 px-4 py-1.5 bg-primary/10 text-primary text-[10px] font-bold">
-                  <Check className="w-3 h-3" />
-                  {t.alreadySaved}
-                </div>
-              )}
-              <div className="p-6 border-b border-border">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center group-hover:bg-accent transition-colors">
-                    <ShoppingCart className="w-6 h-6 text-muted-foreground group-hover:text-accent-foreground" />
-                  </div>
-                  <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${trendColors[p.trend] || trendColors.stable}`}>
-                    <TrendIcon className="w-3 h-3" />
-                    {getTrendLabel(p.trend)}
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-foreground mb-1">{translateProductName(p.item, lang)}</h3>
-                <div className="flex items-end gap-3">
-                  <div>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase">{t.currentPrice}</p>
-                    <p className="font-bold text-muted-foreground">{formatPrice(p.currentPrice, lang, t.currency)}</p>
-                  </div>
-                  <div className={`pb-1 text-border ${lang === 'ar' ? 'rotate-180' : ''}`}>
-                    <ChevronRight className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-primary uppercase">{t.nextMonth}</p>
-                    <p className={`text-xl font-black ${p.predictedPrice > p.currentPrice ? 'text-destructive' : 'text-primary'}`}>
-                      {formatPrice(p.predictedPrice, lang, t.currency)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground font-medium flex items-center gap-1">
-                    <Percent className="w-3 h-3" /> {t.confidence}
-                  </span>
-                  <span className="font-bold text-foreground">{lang === 'ar' ? `٪${fn(Math.round(p.confidence * 100), lang)}` : `${Math.round(p.confidence * 100)}%`}</span>
-                </div>
-                <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                  <div style={{ width: `${p.confidence * 100}%` }} className="h-full bg-primary rounded-full transition-all duration-700" />
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed font-medium italic">{translateAdvice(p.advice, p.item, lang)}</p>
-                {p.trend === 'up' && (
-                  <div className="flex items-center gap-2 p-3 bg-amber/10 rounded-2xl border border-amber/20">
-                    <Sparkles className="w-4 h-4 text-amber" />
-                    <span className="text-xs font-bold text-amber">{t.suggestBuy}</span>
+      {/* Search and Filters Bar */}
+      <div className="flex flex-col sm:flex-row gap-4 glass border border-border p-4 rounded-3xl shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t.searchPlaceholder}
+            className="w-full bg-secondary/50 border border-border rounded-2xl py-2.5 ps-10 pe-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-all font-cairo"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <select
+            value={selectedTrend}
+            onChange={(e) => setSelectedTrend(e.target.value)}
+            className="bg-secondary/50 border border-border rounded-2xl py-2.5 px-4 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-all font-cairo cursor-pointer"
+          >
+            <option value="all" className="bg-card text-foreground">{t.allTrends}</option>
+            <option value="up" className="bg-card text-foreground">{t.trendUp}</option>
+            <option value="down" className="bg-card text-foreground">{t.trendDown}</option>
+            <option value="stable" className="bg-card text-foreground">{t.trendStable}</option>
+          </select>
+        </div>
+      </div>
+
+      {filteredPredictions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[250px] glass rounded-3xl border border-border p-8 text-center animate-in fade-in duration-300">
+          <ShoppingCart className="w-12 h-12 text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground font-cairo">{t.noResults}</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPredictions.map((p, idx) => {
+            const TrendIcon = getTrendIcon(p.trend);
+            const isSaved = savedSet.has(translateProductName(p.item, 'en') ?? p.item);
+            const isShopOpen = shopOpenItem === p.item;
+            return (
+              <div key={idx} className={`card-3d glass rounded-3xl border overflow-hidden group transition-all duration-300 ${isSaved ? 'border-primary/50 ring-2 ring-primary/20' : 'border-border hover:border-primary/30'} ${cardAccents[idx % cardAccents.length]}`}>
+                {/* Saved indicator */}
+                {isSaved && (
+                  <div className="flex items-center gap-1.5 px-4 py-1.5 bg-primary/10 text-primary text-[10px] font-bold">
+                    <Check className="w-3 h-3" />
+                    {t.alreadySaved}
                   </div>
                 )}
-                {/* Two separate buttons: Save & Shop */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleSave(p)}
-                    disabled={isSaved}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
-                      isSaved
-                        ? 'bg-primary/20 text-primary cursor-default'
-                        : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-[1.02] active:scale-[0.98]'
-                    }`}
-                  >
-                    {isSaved ? <Check className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
-                    {isSaved ? t.savedCheck : t.saveItem}
-                  </button>
-                  <button
-                    onClick={() => setShopOpenIdx(isShopOpen ? null : idx)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-accent text-accent-foreground rounded-xl text-xs font-bold hover:bg-accent/80 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    {t.shopNow}
-                  </button>
+                <div className="p-6 border-b border-border">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center group-hover:bg-accent transition-colors">
+                      <ShoppingCart className="w-6 h-6 text-muted-foreground group-hover:text-accent-foreground" />
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${trendColors[p.trend] || trendColors.stable}`}>
+                      <TrendIcon className="w-3 h-3" />
+                      {getTrendLabel(p.trend)}
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-1">{translateProductName(p.item, lang)}</h3>
+                  <div className="flex items-end gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">{t.currentPrice}</p>
+                      <p className="font-bold text-muted-foreground">{formatPrice(p.currentPrice, lang, t.currency)}</p>
+                    </div>
+                    <div className={`pb-1 text-border ${lang === 'ar' ? 'rotate-180' : ''}`}>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-primary uppercase">{t.nextMonth}</p>
+                      <p className={`text-xl font-black ${p.predictedPrice > p.currentPrice ? 'text-destructive' : 'text-primary'}`}>
+                        {formatPrice(p.predictedPrice, lang, t.currency)}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                {/* Shopping links dropdown */}
-                <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isShopOpen ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    {onlineStores.map((store, sIdx) => (
-                      <a key={sIdx} href={store.url(translateProductName(p.item, 'en'))} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-secondary/50 text-xs font-bold text-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:scale-[1.03] active:scale-[0.97] transition-all duration-200"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        {store.name[lang]}
-                      </a>
-                    ))}
+                <div className="p-6 space-y-4">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground font-medium flex items-center gap-1">
+                      <Percent className="w-3 h-3" /> {t.confidence}
+                    </span>
+                    <span className="font-bold text-foreground">{lang === 'ar' ? `٪${fn(Math.round(p.confidence * 100), lang)}` : `${Math.round(p.confidence * 100)}%`}</span>
+                  </div>
+                  <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
+                    <div style={{ width: `${p.confidence * 100}%` }} className="h-full bg-primary rounded-full transition-all duration-700" />
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed font-medium italic">{translateAdvice(p.advice, p.item, lang)}</p>
+                  {p.trend === 'up' && (
+                    <div className="flex items-center gap-2 p-3 bg-amber/10 rounded-2xl border border-amber/20">
+                      <Sparkles className="w-4 h-4 text-amber" />
+                      <span className="text-xs font-bold text-amber">{t.suggestBuy}</span>
+                    </div>
+                  )}
+                  {/* Two separate buttons: Save & Shop */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSave(p)}
+                      disabled={isSaved}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
+                        isSaved
+                          ? 'bg-primary/20 text-primary cursor-default'
+                          : 'bg-primary/10 text-primary hover:bg-primary/20 hover:scale-[1.02] active:scale-[0.98]'
+                      }`}
+                    >
+                      {isSaved ? <Check className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
+                      {isSaved ? t.savedCheck : t.saveItem}
+                    </button>
+                    <button
+                      onClick={() => setShopOpenItem(isShopOpen ? null : p.item)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-accent text-accent-foreground rounded-xl text-xs font-bold hover:bg-accent/80 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      {t.shopNow}
+                    </button>
+                  </div>
+                  {/* Shopping links dropdown */}
+                  <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isShopOpen ? 'max-h-40 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      {onlineStores.map((store, sIdx) => (
+                        <a key={sIdx} href={store.url(translateProductName(p.item, 'en'))} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-border bg-secondary/50 text-xs font-bold text-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/30 hover:scale-[1.03] active:scale-[0.97] transition-all duration-200"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          {store.name[lang]}
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

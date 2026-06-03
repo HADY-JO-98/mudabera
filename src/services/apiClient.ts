@@ -347,6 +347,9 @@ export const profileApi = {
   update(data: unknown) {
     return apiClient.put('/api/User/profile', data, getAuthHeaders());
   },
+  delete() {
+    return apiClient.delete('/api/User/profile', getAuthHeaders());
+  },
 };
 
 // ─── Onboarding API ────────────────────────────────────────────────────────────

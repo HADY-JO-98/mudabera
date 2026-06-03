@@ -82,7 +82,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
       case 'shopping': return <ShoppingList profile={profile} lang={lang} onNavigate={(p) => setPage(p as Page)} />;
       case 'saved': return <SavedItems lang={lang} />;
       case 'analytics': return <Analytics profile={profile} lang={lang} />;
-      case 'profile': return <Profile profile={profile} lang={lang} onUpdate={onProfileUpdate} />;
+      case 'profile': return <Profile profile={profile} lang={lang} onUpdate={onProfileUpdate} onLogout={onLogout} />;
       case 'how': return <ExtraPages type="how" lang={lang} />;
       case 'privacy': return <ExtraPages type="privacy" lang={lang} />;
       case 'help': return <ExtraPages type="help" lang={lang} />;

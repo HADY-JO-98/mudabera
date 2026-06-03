@@ -3,7 +3,7 @@ import { UserProfile, ShoppingItem, ShoppingCategory } from '../../types';
 import { translations } from '../../translations';
 import { shoppingApi, expenseApi, budgetApi } from '../../services/apiClient';
 import { Language } from '../../types';
-import { CheckCircle2, Circle, AlertCircle, Loader2, Sparkles, PartyPopper, ShoppingCart, Tag, ShieldCheck, Download, MessageSquare, Save, Apple, Carrot, Beef, Fish, Milk, Wheat, Coffee, Cookie, SprayCan, Package, ChevronDown } from 'lucide-react';
+import { CheckCircle2, Circle, AlertCircle, Loader2, Sparkles, PartyPopper, ShoppingCart, Tag, ShieldCheck, Download, MessageSquare, Save, Apple, Carrot, Beef, Fish, Milk, Wheat, Coffee, Cookie, SprayCan, Package, ChevronDown, RotateCw } from 'lucide-react';
 import { formatPrice, formatNumber, fn } from '../../utils/formatNumber';
 import { translateProductName, translateQuantity } from '../../utils/productTranslations';
 import { generateFullReport } from '../../utils/pdfGenerator';
@@ -118,6 +118,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
   const [prevLang, setPrevLang] = useState(lang);
   const [notesFeedback, setNotesFeedback] = useState('');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingList, setIsGeneratingList] = useState(false);
   const [collapsedCats, setCollapsedCats] = useState<Set<string>>(new Set());
 
   const [foodBudget, setFoodBudget] = useState(profile.monthlySalary * 0.2);
@@ -253,13 +254,25 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
     setTimeout(() => setNotesFeedback(''), 4000);
   };
 
-  const handleSaveList = () => {
-    const toast = document.createElement('div');
-    toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-bold text-sm shadow-2xl';
-    toast.style.animation = 'slideUp 0.3s ease-out';
-    toast.textContent = lang === 'ar' ? '✅ تم حفظ القائمة بنجاح' : '✅ List saved successfully';
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2500);
+  const handleRegenerateList = async () => {
+    setIsGeneratingList(true);
+    try {
+      const genRes = await shoppingApi.generate();
+      const gd = genRes.data as any;
+      if (genRes.ok && gd) {
+        const parsed = extractApiItems(gd);
+        setItems(parsed);
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-bold text-sm shadow-2xl';
+        toast.style.animation = 'slideUp 0.3s ease-out';
+        toast.textContent = lang === 'ar' ? '✅ تم إعادة توليد القائمة بنجاح' : '✅ List regenerated successfully';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+      }
+    } catch (error) {
+      console.error('Failed to regenerate shopping list', error);
+    }
+    setIsGeneratingList(false);
   };
 
   const completedCost = items.reduce((sum, item, idx) => completed.has(idx) ? sum + item.estimatedCost : sum, 0);
@@ -483,8 +496,13 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
             <button onClick={handleExportPDF} disabled={isGeneratingPdf} className="p-3 glass border border-border rounded-xl text-muted-foreground hover:bg-secondary hover:scale-105 active:scale-95 transition-all disabled:opacity-50" title={t.downloadPdf}>
               {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
             </button>
-            <button onClick={handleSaveList} className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 hover:scale-105 active:scale-95 transition-all shadow-lg">
-              <Save className="w-4 h-4" /> {lang === 'ar' ? 'حفظ' : 'Save'}
+            <button
+              onClick={handleRegenerateList}
+              disabled={isGeneratingList}
+              className="flex items-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:opacity-90 hover:scale-105 active:scale-95 transition-all shadow-lg disabled:opacity-50"
+            >
+              {isGeneratingList ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCw className="w-4 h-4" />}
+              {t.regenerateList}
             </button>
           </div>
         </div>
@@ -656,7 +674,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
         </div>
 
         <div className="space-y-6 no-print">
-          <div className="sticky top-20 space-y-6">
+          <div className="space-y-6">
             <div className="bg-foreground text-background p-8 rounded-[2rem] space-y-6 shadow-2xl overflow-hidden group relative" style={{ animation: 'slideUp 0.6s ease-out 0.4s both' }}>
               <div className="absolute top-0 end-0 w-40 h-40 bg-primary/10 rounded-full -me-20 -mt-20 blur-3xl group-hover:scale-125 transition-transform duration-1000" />
               <div className="absolute bottom-0 start-0 w-32 h-32 bg-accent/10 rounded-full -ms-16 -mb-16 blur-3xl group-hover:scale-110 transition-transform duration-1000 delay-200" />
