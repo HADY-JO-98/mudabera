@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { UserProfile, Language } from '../../types';
 import { translations } from '../../translations';
 import { 
@@ -38,16 +39,19 @@ interface SidebarContentProps {
 
 const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setTheme, onLogout, onProfileUpdate }) => {
   const t = translations[lang];
-  const [page, setPage] = useState<Page>(() => {
-    const saved = localStorage.getItem('mudaber_active_page');
-    return (saved as Page) || 'expenses';
-  });
+  const location = useLocation();
+  const navigate = useNavigate();
+  const path = location.pathname.slice(1);
+  const page = (path || 'expenses') as Page;
+
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop collapse to icons-only
 
   React.useEffect(() => {
-    localStorage.setItem('mudaber_active_page', page);
-  }, [page]);
+    if (location.pathname === '/') {
+      navigate('/expenses', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   const handleLogoutClick = () => {
     localStorage.removeItem('mudaber_active_page');
@@ -75,11 +79,11 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
   const renderPage = () => {
     switch (page) {
       case 'dashboard': return <Dashboard profile={profile} lang={lang} theme={theme} />;
-      case 'expenses': return <ExpenseTracker profile={profile} lang={lang} onNavigate={(p) => setPage(p as Page)} />;
+      case 'expenses': return <ExpenseTracker profile={profile} lang={lang} onNavigate={(p) => navigate('/' + p)} />;
       case 'budget': return <BudgetPlanner profile={profile} lang={lang} />;
       case 'investments': return <Investments profile={profile} lang={lang} />;
-      case 'prices': return <PriceForecaster profile={profile} lang={lang} onNavigate={(p) => setPage(p as Page)} />;
-      case 'shopping': return <ShoppingList profile={profile} lang={lang} onNavigate={(p) => setPage(p as Page)} />;
+      case 'prices': return <PriceForecaster profile={profile} lang={lang} onNavigate={(p) => navigate('/' + p)} />;
+      case 'shopping': return <ShoppingList profile={profile} lang={lang} onNavigate={(p) => navigate('/' + p)} />;
       case 'saved': return <SavedItems lang={lang} />;
       case 'analytics': return <Analytics profile={profile} lang={lang} />;
       case 'profile': return <Profile profile={profile} lang={lang} onUpdate={onProfileUpdate} onLogout={onLogout} />;
@@ -116,7 +120,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
         {/* Main Nav */}
         <nav className="flex-1 px-2 space-y-1 mt-4 overflow-y-auto custom-scrollbar">
           {navItems.map(item => (
-            <button key={item.id} onClick={() => { setPage(item.id); setSidebarOpen(false); }}
+            <button key={item.id} onClick={() => { navigate('/' + item.id); setSidebarOpen(false); }}
               title={!isExpanded ? item.label : undefined}
               className={`w-full flex items-center ${isExpanded ? 'gap-3 px-4' : 'justify-center px-0'} py-3 rounded-2xl text-sm font-bold transition-all duration-200 ${
                 page === item.id ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
@@ -127,7 +131,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
           ))}
           <hr className="border-border my-4" />
           {extraItems.map(item => (
-            <button key={item.id} onClick={() => { setPage(item.id); setSidebarOpen(false); }}
+            <button key={item.id} onClick={() => { navigate('/' + item.id); setSidebarOpen(false); }}
               title={!isExpanded ? item.label : undefined}
               className={`w-full flex items-center ${isExpanded ? 'gap-3 px-4' : 'justify-center px-0'} py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 ${
                 page === item.id ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:bg-secondary'
@@ -142,7 +146,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
         <div className="p-3 space-y-2">
           {isExpanded ? (
             <>
-              <button onClick={() => { setPage('profile'); setSidebarOpen(false); }} className="glass p-3 rounded-2xl flex items-center gap-3 shadow-sm w-full hover:bg-secondary/50 transition-all cursor-pointer group">
+              <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} className="glass p-3 rounded-2xl flex items-center gap-3 shadow-sm w-full hover:bg-secondary/50 transition-all cursor-pointer group">
                 
                 <div className="flex-1 min-w-0 text-start">
                   <p className="text-sm font-bold text-foreground truncate">{profile.account.name}</p>
@@ -155,8 +159,8 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
             </>
           ) : (
             <>
-              <button onClick={() => { setPage('profile'); setSidebarOpen(false); }} title={t.profile} className="w-full flex justify-center p-2 rounded-xl hover:bg-secondary/50 transition-all">
-               
+              <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} title={t.profile} className="w-full flex justify-center p-2 rounded-xl hover:bg-secondary/50 transition-all">
+                
               </button>
               <button onClick={handleLogoutClick} title={t.logout} className="w-full flex justify-center p-2 text-destructive bg-destructive/10 rounded-xl hover:bg-destructive/20 transition-all">
                 <LogOut className="w-4 h-4" />
@@ -222,7 +226,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
             <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className="glass p-2.5 rounded-xl hover:scale-105 transition-all text-muted-foreground text-xs font-black border border-border flex items-center gap-1 shadow-sm">
               <Globe className="w-4 h-4" /> {lang === 'en' ? 'AR' : 'EN'}
             </button>
-            <button onClick={() => { setPage('profile'); setSidebarOpen(false); }} className="rounded-xl hover:scale-105 transition-all lg:hidden">
+            <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} className="rounded-xl hover:scale-105 transition-all lg:hidden">
               <span className="sr-only">profile</span>
             </button>
           </div>
