@@ -281,9 +281,9 @@ export const insightsApi = {
     return apiClient.post(`/api/Insights/basic${params}`, lang ? { lang, language: lang } : undefined, headers);
   },
   evaluateAchievements(lang?: string) {
-    const params = lang ? `?lang=${lang}&language=${lang}` : '';
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
     const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
-    return apiClient.post(`/api/Insights/achievements/evaluate${params}`, lang ? { lang, language: lang } : undefined, headers);
+    return apiClient.post(`/api/Insights/achievements/evaluate${query}`, lang ? { lang, language: lang } : undefined, headers);
   },
 };
 
@@ -301,12 +301,15 @@ export const investmentsApi = {
 //   GET /api/Prediction/{date}          — predictions for a specific date (YYYY-MM-DD)
 export const predictionApi = {
   /** Fetch the latest price predictions with pagination support */
-  getLatest(page = 1, perPage = 50) {
-    return apiClient.get(`/api/Prediction/latest?page=${page}&per_page=${perPage}`, getAuthHeaders());
+  getLatest(page = 1, perPage = 50, lang?: string) {
+    const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
+    if (lang) params.append('lang', lang);
+    return apiClient.get(`/api/Prediction/latest?${params.toString()}`, getAuthHeaders());
   },
   /** Fetch predictions for a specific date, e.g. "2025-08-01" */
-  getByDate(date: string) {
-    return apiClient.get(`/api/Prediction/${encodeURIComponent(date)}`, getAuthHeaders());
+  getByDate(date: string, lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiClient.get(`/api/Prediction/${encodeURIComponent(date)}${query}`, getAuthHeaders());
   },
 };
 
@@ -325,14 +328,17 @@ export const savedItemsApi = {
 
 // ─── Shopping API ──────────────────────────────────────────────────────────────
 export const shoppingApi = {
-  getSmartList() {
-    return apiClient.get('/api/Shopping/smart-list', getAuthHeaders());
+  getSmartList(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiClient.get(`/api/Shopping/smart-list${query}`, getAuthHeaders());
   },
-  generate() {
-    return apiClient.post('/api/Shopping/smart-list/generate', undefined, getAuthHeaders());
+  generate(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiClient.post(`/api/Shopping/smart-list/generate${query}`, {}, getAuthHeaders());
   },
-  modify(data: unknown) {
-    return apiClient.post('/api/Shopping/smart-list/modify', data, getAuthHeaders());
+  modify(data: unknown, lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiClient.post(`/api/Shopping/smart-list/modify${query}`, data, getAuthHeaders());
   },
   logPurchases(data: unknown) {
     return apiClient.post('/api/Shopping/smart-list/log-purchases', data, getAuthHeaders());

@@ -57,7 +57,7 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
 
         // Keep the number of items per page at exactly 50
         const perPage = 50;
-        let res = await predictionApi.getLatest(currentPage, perPage);
+        let res = await predictionApi.getLatest(currentPage, perPage, lang);
 
         console.log('[PriceForecaster] raw response:', res);
 
@@ -84,7 +84,7 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
         // Fallback to page 1 if we went out of bounds
         if (fetched.length === 0 && currentPage > 1) {
           currentPage = 1;
-          res = await predictionApi.getLatest(currentPage, perPage);
+          res = await predictionApi.getLatest(currentPage, perPage, lang);
           if (res.ok && res.data) {
             const d = res.data as any;
             const raw = Array.isArray(d) ? d

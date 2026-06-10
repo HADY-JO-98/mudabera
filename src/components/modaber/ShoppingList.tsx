@@ -173,7 +173,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
 
   useEffect(() => {
     const fetchList = async () => {
-      const res = await shoppingApi.getSmartList();
+      const res = await shoppingApi.getSmartList(lang);
       const d = res.data as any;
       if (res.ok && d) {
         const parsed = extractApiItems(d);
@@ -186,7 +186,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
 
       // If empty, generate from backend
       try {
-        const genRes = await shoppingApi.generate();
+        const genRes = await shoppingApi.generate(lang);
         const gd = genRes.data as any;
         if (genRes.ok && gd) {
           const parsed = extractApiItems(gd);
@@ -236,7 +236,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
     setNotesFeedback('');
 
     try {
-      const res = await shoppingApi.modify({ instruction: aiNotes });
+      const res = await shoppingApi.modify({ instruction: aiNotes }, lang);
       if (res.ok && res.data) {
         const parsed = extractApiItems(res.data);
         setItems(parsed);
@@ -257,7 +257,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
   const handleRegenerateList = async () => {
     setIsGeneratingList(true);
     try {
-      const genRes = await shoppingApi.generate();
+      const genRes = await shoppingApi.generate(lang);
       const gd = genRes.data as any;
       if (genRes.ok && gd) {
         const parsed = extractApiItems(gd);
