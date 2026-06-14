@@ -4,6 +4,7 @@ import { UserAccount, Language } from '../../types';
 import { translations } from '../../translations';
 import { authApi, setAuthToken } from '../../services/apiClient';
 import { toArabicDigits as _toArabicDigits } from '../../utils/formatNumber';
+import { useGoogleLogin } from '@react-oauth/google';
 
 interface AuthProps {
   onLogin: (account: UserAccount) => void;
@@ -291,6 +292,93 @@ const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, theme, setTheme }) 
   const inputClass = (invalid: boolean) =>
     `w-full bg-secondary/50 border rounded-xl py-3 ps-12 pe-4 focus:ring-2 focus:ring-primary outline-none transition-all text-sm font-bold text-foreground placeholder:text-muted-foreground/50 ${invalid ? 'border-destructive' : 'border-border'}`;
 
+  // ─── Google Sign-In handler ─────────────────────────────────────────────────
+  const handleGoogleSuccess = async (idToken: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await authApi.loginWithGoogle({ idToken });
+      if (!res.ok) {
+        setError(res.error || (lang === 'ar' ? 'فشل تسجيل الدخول بحساب Google' : 'Google sign-in failed'));
+        setIsLoading(false);
+        return;
+      }
+      const token = (res.data as any)?.token ?? (res.data as any)?.accessToken ?? null;
+      const refresh = (res.data as any)?.refreshToken ?? null;
+      if (token) setAuthToken(token, refresh);
+
+      // Decode JWT payload to extract name/email/picture
+      let userName = '';
+      let userEmail = '';
+      let userAvatar = '';
+      try {
+        const payload = JSON.parse(atob(idToken.split('.')[1]));
+        userName = payload.name || payload.given_name || '';
+        userEmail = payload.email || '';
+        userAvatar = payload.picture || '';
+      } catch { /* ignore decode errors */ }
+
+      // Fallback from backend response
+      const backendUser = (res.data as any)?.user;
+      const finalName = backendUser?.name || userName || 'Google User';
+      const finalEmail = backendUser?.email || userEmail || '';
+      const finalAvatar = userAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=4285F4&color=fff`;
+
+      setSuccess(t.loginSuccess);
+      onLogin({ name: finalName, email: finalEmail, avatar: finalAvatar });
+    } catch {
+      setError(lang === 'ar' ? 'خطأ غير متوقع أثناء تسجيل الدخول بحساب Google' : 'Unexpected error during Google sign-in');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const googleLogin = useGoogleLogin({
+    flow: 'implicit',
+    onSuccess: async (tokenResponse) => {
+      // Exchange Google access token for an id_token via Google's userinfo or tokeninfo
+      try {
+        // Use tokeninfo to get the id_token from the access_token
+        const res = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo`, {
+          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+        });
+        const userInfo = await res.json();
+
+        // Build a pseudo id_token payload for the backend, or send the access_token
+        // The backend's /api/Auth/google expects { idToken: string }
+        // We'll send the access_token and let the backend validate it
+        setIsLoading(true);
+        setError(null);
+
+        const backendRes = await authApi.loginWithGoogle({ idToken: tokenResponse.access_token });
+        if (!backendRes.ok) {
+          setError(backendRes.error || (lang === 'ar' ? 'فشل تسجيل الدخول بحساب Google' : 'Google sign-in failed'));
+          setIsLoading(false);
+          return;
+        }
+
+        const token = (backendRes.data as any)?.token ?? (backendRes.data as any)?.accessToken ?? null;
+        const refresh = (backendRes.data as any)?.refreshToken ?? null;
+        if (token) setAuthToken(token, refresh);
+
+        const backendUser = (backendRes.data as any)?.user;
+        const finalName = backendUser?.name || userInfo?.name || 'Google User';
+        const finalEmail = backendUser?.email || userInfo?.email || '';
+        const finalAvatar = userInfo?.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(finalName)}&background=4285F4&color=fff`;
+
+        setSuccess(t.loginSuccess);
+        onLogin({ name: finalName, email: finalEmail, avatar: finalAvatar });
+      } catch {
+        setError(lang === 'ar' ? 'خطأ غير متوقع أثناء تسجيل الدخول بحساب Google' : 'Unexpected error during Google sign-in');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      setError(lang === 'ar' ? 'تم إلغاء تسجيل الدخول بحساب Google' : 'Google sign-in was cancelled');
+    },
+  });
+
   // Shared social buttons
   const SocialButtons = () => (
     <>
@@ -300,10 +388,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, theme, setTheme }) 
         <hr className="flex-1 border-border" />
       </div>
       <div className="flex gap-4 justify-center">
-        <button title="" type="button" onClick={() => {
-          setIsLoading(true);
-          setTimeout(() => { onLogin({ name: 'Google User', email: 'user@gmail.com', avatar: 'https://ui-avatars.com/api/?name=Google+User&background=4285F4&color=fff' }); setIsLoading(false); }, 1000);
-        }} className="w-11 h-11 flex items-center justify-center bg-secondary border border-border rounded-xl hover:bg-accent hover:scale-105 active:scale-95 transition-all">
+        <button title="Google" type="button" onClick={() => googleLogin()} className="w-11 h-11 flex items-center justify-center bg-secondary border border-border rounded-xl hover:bg-accent hover:scale-105 active:scale-95 transition-all">
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -311,7 +396,7 @@ const Auth: React.FC<AuthProps> = ({ onLogin, lang, setLang, theme, setTheme }) 
             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
           </svg>
         </button>
-        <button title="" type="button" onClick={() => {
+        <button title="Apple" type="button" onClick={() => {
           setIsLoading(true);
           setTimeout(() => { onLogin({ name: 'Apple User', email: 'user@icloud.com', avatar: 'https://ui-avatars.com/api/?name=Apple+User&background=000000&color=fff' }); setIsLoading(false); }, 1000);
         }} className="w-11 h-11 flex items-center justify-center bg-secondary border border-border rounded-xl hover:bg-accent hover:scale-105 active:scale-95 transition-all">
