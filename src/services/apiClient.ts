@@ -323,17 +323,14 @@ export const savedItemsApi = {
 
 // ─── Shopping API ──────────────────────────────────────────────────────────────
 export const shoppingApi = {
-  getSmartList(lang?: string) {
-    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
-    return apiClient.get(`/api/Shopping/smart-list${query}`, getAuthHeaders());
+  getSmartList() {
+    return apiClient.get('/api/Shopping/smart-list', getAuthHeaders());
   },
-  generate(lang?: string) {
-    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
-    return apiClient.post(`/api/Shopping/smart-list/generate${query}`, {}, getAuthHeaders());
+  generate() {
+    return apiClient.post('/api/Shopping/smart-list/generate', {}, getAuthHeaders());
   },
-  modify(data: unknown, lang?: string) {
-    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
-    return apiClient.post(`/api/Shopping/smart-list/modify${query}`, data, getAuthHeaders());
+  modify(data: unknown) {
+    return apiClient.post('/api/Shopping/smart-list/modify', data, getAuthHeaders());
   },
   logPurchases(data: unknown) {
     return apiClient.post('/api/Shopping/smart-list/log-purchases', data, getAuthHeaders());

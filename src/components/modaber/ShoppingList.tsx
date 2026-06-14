@@ -67,9 +67,9 @@ const detectCategory = (name: string): ShoppingCategory => {
   return 'other';
 };
 
-const mapApiItem = (item: any): ShoppingItem => {
+const mapApiItem = (item: any, lang: Language): ShoppingItem => {
   let cat: ShoppingCategory = 'other';
-  const apiCat = (item.category || '').toLowerCase();
+  const apiCat = (item.category_en || item.category || '').toLowerCase();
   if (apiCat.includes('beverage')) cat = 'beverages';
   else if (apiCat.includes('dairy')) cat = 'dairy';
   else if (apiCat.includes('grain') || apiCat.includes('bakery')) cat = 'grains';
@@ -81,16 +81,33 @@ const mapApiItem = (item: any): ShoppingItem => {
   else if (apiCat.includes('vegetable')) cat = 'vegetables';
   else cat = detectCategory(item.product_name || item.name || '');
 
+  const displayName = lang === 'ar'
+    ? (item.product_name_ar || item.product_name || item.name || '')
+    : (item.product_name_en || item.product_name || item.name || '');
+
   return {
-    name: item.product_name || item.name || '',
+    name: displayName,
     quantity: String(item.quantity || '1'),
     estimatedCost: Number(item.total_price || item.estimatedCost || 0),
-    isPriority: !!item.isPriority || item.slot === 'mandatory',
-    category: cat
+    isPriority: !!item.isPriority || !!item.is_priority || item.slot === 'mandatory' || item.slot_en === 'mandatory',
+    category: cat,
+    product_name_ar: item.product_name_ar || item.product_name || item.name || '',
+    product_name_en: item.product_name_en || item.product_name || item.name || '',
+    category_ar: item.category_ar || item.category || '',
+    category_en: item.category_en || item.category || '',
+    slot: item.slot,
+    slot_ar: item.slot_ar,
+    slot_en: item.slot_en,
+    source: item.source,
+    source_ar: item.source_ar,
+    source_en: item.source_en,
+    unit_price: item.unit_price,
+    discount_pct: item.discount_pct,
+    isCompleted: item.isCompleted || item.is_completed
   };
 };
 
-const extractApiItems = (d: any): ShoppingItem[] => {
+const extractApiItems = (d: any, lang: Language): ShoppingItem[] => {
   if (!d) return [];
   let raw: any[] = [];
   if (Array.isArray(d)) {
@@ -102,7 +119,7 @@ const extractApiItems = (d: any): ShoppingItem[] => {
   } else if (Array.isArray(d.data)) {
     raw = d.data;
   }
-  return raw.map(mapApiItem);
+  return raw.map(item => mapApiItem(item, lang));
 };
 
 const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }) => {
@@ -173,10 +190,10 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
 
   useEffect(() => {
     const fetchList = async () => {
-      const res = await shoppingApi.getSmartList(lang);
+      const res = await shoppingApi.getSmartList();
       const d = res.data as any;
       if (res.ok && d) {
-        const parsed = extractApiItems(d);
+        const parsed = extractApiItems(d, lang);
         if (parsed.length > 0) {
           setItems(parsed);
           setLoading(false);
@@ -186,10 +203,10 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
 
       // If empty, generate from backend
       try {
-        const genRes = await shoppingApi.generate(lang);
+        const genRes = await shoppingApi.generate();
         const gd = genRes.data as any;
         if (genRes.ok && gd) {
-          const parsed = extractApiItems(gd);
+          const parsed = extractApiItems(gd, lang);
           setItems(parsed);
         } else {
           setItems([]);
@@ -200,7 +217,7 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
       setLoading(false);
     };
     fetchList();
-  }, [profile, lang]);
+  }, [profile]);
 
   // Translate product names when language changes
   useEffect(() => {
@@ -209,7 +226,9 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
       if (prev.length === 0) return prev;
       const updated = prev.map(item => ({
         ...item,
-        name: translateProductName(item.name, lang),
+        name: lang === 'ar'
+          ? (item.product_name_ar || translateProductName(item.name, 'ar'))
+          : (item.product_name_en || translateProductName(item.name, 'en')),
         quantity: translateQuantity(item.quantity, lang),
         category: item.category || detectCategory(item.name),
       }));
@@ -236,9 +255,9 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
     setNotesFeedback('');
 
     try {
-      const res = await shoppingApi.modify({ instruction: aiNotes }, lang);
+      const res = await shoppingApi.modify({ instruction: aiNotes });
       if (res.ok && res.data) {
-        const parsed = extractApiItems(res.data);
+        const parsed = extractApiItems(res.data, lang);
         setItems(parsed);
         setNotesFeedback(lang === 'ar' ? '✅ تم تحديث القائمة بنجاح' : '✅ List updated successfully');
       } else {
@@ -257,10 +276,10 @@ const ShoppingList: React.FC<ShoppingListProps> = ({ profile, lang, onNavigate }
   const handleRegenerateList = async () => {
     setIsGeneratingList(true);
     try {
-      const genRes = await shoppingApi.generate(lang);
+      const genRes = await shoppingApi.generate();
       const gd = genRes.data as any;
       if (genRes.ok && gd) {
-        const parsed = extractApiItems(gd);
+        const parsed = extractApiItems(gd, lang);
         setItems(parsed);
         const toast = document.createElement('div');
         toast.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] bg-primary text-primary-foreground px-6 py-3 rounded-2xl font-bold text-sm shadow-2xl';

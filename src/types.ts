@@ -83,6 +83,19 @@ export interface ShoppingItem {
   estimatedCost: number;
   isPriority: boolean;
   category?: ShoppingCategory;
+  product_name_ar?: string;
+  product_name_en?: string;
+  category_ar?: string;
+  category_en?: string;
+  slot?: string;
+  slot_ar?: string;
+  slot_en?: string;
+  source?: string;
+  source_ar?: string;
+  source_en?: string;
+  unit_price?: number;
+  discount_pct?: number;
+  isCompleted?: boolean;
 }
 
 export interface InvestmentOption {
