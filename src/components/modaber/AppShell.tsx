@@ -147,7 +147,17 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
           {isExpanded ? (
             <>
               <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} className="glass p-3 rounded-2xl flex items-center gap-3 shadow-sm w-full hover:bg-secondary/50 transition-all cursor-pointer group">
-                
+                {profile.account.avatar ? (
+                  <img
+                    src={profile.account.avatar}
+                    alt={profile.account.name}
+                    className="w-9 h-9 rounded-full object-cover border border-border/60 shadow-sm"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-accent/20 flex items-center justify-center border border-border">
+                    <User className="w-4 h-4 text-primary" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0 text-start">
                   <p className="text-sm font-bold text-foreground truncate">{profile.account.name}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{profile.account.email}</p>
@@ -160,7 +170,15 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
           ) : (
             <>
               <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} title={t.profile} className="w-full flex justify-center p-2 rounded-xl hover:bg-secondary/50 transition-all">
-                
+                {profile.account.avatar ? (
+                  <img
+                    src={profile.account.avatar}
+                    alt={profile.account.name}
+                    className="w-8 h-8 rounded-full object-cover border border-border/60"
+                  />
+                ) : (
+                  <User className="w-5 h-5 text-muted-foreground" />
+                )}
               </button>
               <button onClick={handleLogoutClick} title={t.logout} className="w-full flex justify-center p-2 text-destructive bg-destructive/10 rounded-xl hover:bg-destructive/20 transition-all">
                 <LogOut className="w-4 h-4" />
@@ -226,8 +244,18 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
             <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className="glass p-2.5 rounded-xl hover:scale-105 transition-all text-muted-foreground text-xs font-black border border-border flex items-center gap-1 shadow-sm">
               <Globe className="w-4 h-4" /> {lang === 'en' ? 'AR' : 'EN'}
             </button>
-            <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} className="rounded-xl hover:scale-105 transition-all lg:hidden">
-              <span className="sr-only">profile</span>
+            <button onClick={() => { navigate('/profile'); setSidebarOpen(false); }} className="rounded-xl hover:scale-105 transition-all lg:hidden focus:outline-none">
+              {profile.account.avatar ? (
+                <img
+                  src={profile.account.avatar}
+                  alt={profile.account.name}
+                  className="w-8 h-8 rounded-full object-cover border border-border/60"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center border border-border">
+                  <User className="w-4 h-4 text-muted-foreground" />
+                </div>
+              )}
             </button>
           </div>
         </div>

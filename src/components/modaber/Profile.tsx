@@ -158,7 +158,17 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate, onLogout }) 
             <h3 className="text-xl font-bold text-foreground font-cairo">{t.basicInfo}</h3>
           </div>
           <div className="flex items-center gap-4 p-4 bg-secondary rounded-2xl border border-border">
-            
+            {profile.account.avatar ? (
+              <img
+                src={profile.account.avatar}
+                alt={profile.account.name}
+                className="w-12 h-12 rounded-full object-cover border border-border/60 shadow-sm"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center border border-border">
+                <User className="w-6 h-6 text-primary" />
+              </div>
+            )}
             <div>
               <p className="text-lg font-black text-foreground leading-tight">{profile.account.name}</p>
               <p className="text-sm text-muted-foreground">{profile.account.email}</p>

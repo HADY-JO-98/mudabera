@@ -101,13 +101,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const handleLogin = useCallback(async (acc: UserAccount) => {
     const profileRes = await profileApi.get();
+    let updatedProfile: UserProfile | null = null;
     if (profileRes.ok && profileRes.data) {
       const data = profileRes.data as UserProfile;
       if (data.monthlySalary && data.monthlySalary > 0) {
-        setProfile(data);
+        updatedProfile = {
+          ...data,
+          account: {
+            ...data.account,
+            name: acc.name || data.account?.name || 'User',
+            email: acc.email || data.account?.email || '',
+            avatar: acc.avatar || data.account?.avatar || '',
+          }
+        };
+        setProfile(updatedProfile);
       }
     }
     setAccount(acc);
+
+    if (updatedProfile) {
+      await profileApi.update(updatedProfile);
+    }
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -120,6 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!account) return;
     const fullProfile: UserProfile = { ...data, account };
     setProfile(fullProfile);
+    await profileApi.update(fullProfile);
   }, [account]);
 
   const handleProfileUpdate = useCallback(async (updated: UserProfile) => {
