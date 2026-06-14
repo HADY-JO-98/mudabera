@@ -137,9 +137,13 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
     status: string;
     recommendation: string;
   }
+  interface ApiStatusInsight {
+    signal: any;
+    recommendation: any;
+    status?: string;
+  }
   const [apiInsights, setApiInsights] = useState<ApiInsight[]>([]);
-  const [apiCategoryInsights, setApiCategoryInsights] = useState<ApiCategoryInsight[]>([]);
-  const [apiFixedCategoryInsights, setApiFixedCategoryInsights] = useState<ApiFixedCategoryInsight[]>([]);
+  const [apiStatusInsights, setApiStatusInsights] = useState<ApiStatusInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
 
   React.useEffect(() => {
@@ -199,12 +203,19 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
       }
       if (statusRes.ok && statusRes.data) {
         const d = statusRes.data as any;
-        if (Array.isArray(d.categories)) {
-          setApiCategoryInsights(d.categories);
+        let parsedInsights: ApiStatusInsight[] = [];
+        if (d && d.insights) {
+          if (Array.isArray(d.insights)) {
+            parsedInsights = d.insights;
+          } else if (typeof d.insights === 'object') {
+            if (d.insights.signal || d.insights.recommendation) {
+              parsedInsights = [d.insights];
+            } else {
+              parsedInsights = Object.values(d.insights).filter((item: any) => item && (item.signal || item.recommendation)) as ApiStatusInsight[];
+            }
+          }
         }
-        if (Array.isArray(d.fixed_categories)) {
-          setApiFixedCategoryInsights(d.fixed_categories);
-        }
+        setApiStatusInsights(parsedInsights);
       }
 
       setLoading(false);
@@ -707,72 +718,26 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                   );
                 })}
 
-                {/* 2. Render API-based category recommendations */}
-                {apiCategoryInsights.filter(c => c.recommendation).map((c, idx) => {
-                  const catLabel = CATEGORY_LABELS[String(c.category)]?.[lang] || renderLocalized(c.category, lang);
-                  
-                  const isOverspent = c.status === 'overspent' || c.status === 'overspend' || c.status === 'danger' || c.status === 'critical' || c.spent > c.planned || c.pct_of_plan > 100;
-                  const isCloseToLimit = c.status === 'warning' || (c.pct_of_plan >= 80 && c.pct_of_plan <= 100);
-
+                {/* 2. Render API-based status insights */}
+                {apiStatusInsights.filter(c => c.recommendation).map((c, idx) => {
+                  const status = String(c.status || '').toLowerCase();
                   let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
                   let Icon = ShieldCheck;
 
-                  if (isOverspent) {
+                  if (status === 'danger' || status === 'critical' || status === 'error' || status === 'negative') {
                     bgClass = 'bg-rose/10 border-rose/20 text-rose'; // RED
                     Icon = AlertCircle;
-                  } else if (isCloseToLimit) {
-                    bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
-                    Icon = AlertCircle;
-                  } else {
-                    const catId = String(c.category || '').toLowerCase();
-                    if (catId.includes('saving')) {
-                      bgClass = 'bg-violet/10 border-violet/20 text-violet'; // VIOLET
-                      Icon = Target;
-                    } else if (catId.includes('emergency')) {
-                      bgClass = 'bg-sky/10 border-sky/20 text-sky'; // SKY
-                      Icon = Activity;
-                    } else if (catId.includes('optional') || catId.includes('entertainment')) {
-                      bgClass = 'bg-teal/10 border-teal/20 text-teal'; // TEAL
-                      Icon = Target;
-                    }
-                  }
-
-                  return (
-                    <div key={`api-cat-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * (apiInsights.length + idx)}s both` }}>
-                      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-black uppercase">
-                          {catLabel}
-                        </p>
-                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(c.recommendation, lang)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* 2b. Render API-based fixed category insights (only show those with actual spending > 0) */}
-                {apiFixedCategoryInsights.filter(c => c.actual > 0 && c.recommendation).map((c, idx) => {
-                  const catLabel = EXPENSE_CAT_LABELS[String(c.category)]?.[lang] || renderLocalized(c.category, lang);
-                  const isOverspent = c.status === 'overspent' || c.status === 'overspend' || c.status === 'danger' || c.status === 'critical' || c.actual > c.planned;
-                  const isCloseToLimit = c.status === 'warning' || (c.planned > 0 && (c.actual / c.planned) >= 0.8 && (c.actual / c.planned) <= 1.0);
-
-                  let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
-                  let Icon = ShieldCheck;
-
-                  if (isOverspent) {
-                    bgClass = 'bg-rose/10 border-rose/20 text-rose'; // RED
-                    Icon = AlertCircle;
-                  } else if (isCloseToLimit) {
+                  } else if (status === 'warning' || status === 'warn') {
                     bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
                     Icon = AlertCircle;
                   }
 
                   return (
-                    <div key={`api-fixed-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * (apiInsights.length + apiCategoryInsights.length + idx)}s both` }}>
+                    <div key={`api-status-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * (apiInsights.length + idx)}s both` }}>
                       <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-xs font-black uppercase">
-                          {catLabel}
+                          {renderLocalized(c.signal, lang)}
                         </p>
                         <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(c.recommendation, lang)}</p>
                       </div>
@@ -781,7 +746,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                 })}
 
                 {/* 3. Fallback / Client-side calculated alerts if no API insights returned */}
-                {apiInsights.length === 0 && apiCategoryInsights.length === 0 && apiFixedCategoryInsights.length === 0 && (
+                {apiInsights.length === 0 && apiStatusInsights.length === 0 && (
                   <>
                     {availableIncome < 0 && (
                       <div className="bg-destructive/10 p-4 rounded-2xl border border-destructive/20 flex gap-3">
