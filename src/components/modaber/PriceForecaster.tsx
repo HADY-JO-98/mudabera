@@ -231,41 +231,7 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
 
   const filteredPredictions = predictions;
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-muted-foreground font-cairo">{t.scanningMarkets}</p>
-      </div>
-    );
-  }
 
-  if (predictions.length === 0) {
-    return (
-      <div className="space-y-8 animate-in fade-in duration-700">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground font-cairo">{t.priceForecasting}</h2>
-            <p className="text-muted-foreground">{t.nextMonthMarket}</p>
-          </div>
-          <div className="glass border border-border px-4 py-2 rounded-xl text-xs font-bold text-muted-foreground flex items-center gap-2 shadow-sm">
-            <Clock className="w-4 h-4 text-sky" /> {t.updatedHourly}
-          </div>
-        </div>
-        <div className="flex flex-col items-center justify-center min-h-[300px] glass rounded-3xl border border-border p-12 text-center">
-          <ShoppingCart className="w-16 h-16 text-muted-foreground/30 mb-4" />
-          <h3 className="text-lg font-bold text-foreground font-cairo mb-2">
-            {lang === 'ar' ? 'لا توجد توقعات حالياً' : 'No predictions available yet'}
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            {lang === 'ar'
-              ? 'سيتم عرض توقعات الأسعار هنا عندما تتوفر بيانات من السيرفر. تحقق من console للمزيد من التفاصيل.'
-              : 'Price predictions will appear here when the server returns data. Check the browser console for details.'}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -307,10 +273,26 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
         </div>
       </div>
 
-      {filteredPredictions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center min-h-[250px] glass rounded-3xl border border-border p-8 text-center animate-in fade-in duration-300">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center min-h-[250px] py-12 w-full">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-muted-foreground font-cairo">{t.scanningMarkets}</p>
+        </div>
+      ) : filteredPredictions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center min-h-[250px] glass rounded-3xl border border-border p-8 text-center animate-in fade-in duration-300 w-full">
           <ShoppingCart className="w-12 h-12 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground font-cairo">{t.noResults}</p>
+          <h3 className="text-lg font-bold text-foreground font-cairo mb-2">
+            {searchTerm || selectedTrend !== 'all'
+              ? t.noResults
+              : (lang === 'ar' ? 'لا توجد توقعات حالياً' : 'No predictions available yet')}
+          </h3>
+          {!searchTerm && selectedTrend === 'all' && (
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              {lang === 'ar'
+                ? 'سيتم عرض توقعات الأسعار هنا عندما تتوفر بيانات من السيرفر.'
+                : 'Price predictions will appear here when the server returns data.'}
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
