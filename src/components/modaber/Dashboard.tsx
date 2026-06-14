@@ -719,8 +719,8 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                 })}
 
                 {/* 2. Render API-based status insights */}
-                {apiStatusInsights.filter(c => c.recommendation).map((c, idx) => {
-                  const status = String(c.status || '').toLowerCase();
+                {apiStatusInsights.filter(c => c.recommendation || c.message).map((c, idx) => {
+                  const status = String(c.status || c.severity || '').toLowerCase();
                   let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
                   let Icon = ShieldCheck;
 
@@ -739,7 +739,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                         <p className="text-xs font-black uppercase">
                           {renderLocalized(c.signal, lang)}
                         </p>
-                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(c.recommendation, lang)}</p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(c.recommendation || c.message, lang)}</p>
                       </div>
                     </div>
                   );
