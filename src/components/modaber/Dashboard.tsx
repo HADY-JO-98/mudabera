@@ -115,35 +115,12 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
   const [budgetAllocations, setBudgetAllocations] = useState<StoredAllocation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  interface ApiInsight {
-    message: string;
-    type: string;
-    category?: string;
-  }
-  interface ApiCategoryInsight {
-    category: string;
-    recommendation: string;
-    status: string;
-    spent: number;
-    planned: number;
-    pct_of_plan: number;
-  }
-  interface ApiFixedCategoryInsight {
-    category: string;
-    planned: number;
-    actual: number;
-    diff: number;
-    diff_pct: number;
-    status: string;
-    recommendation: string;
-  }
   interface ApiStatusInsight {
     signal: any;
     message: any;
     status?: string;
     severity?: string;
   }
-  const [apiInsights, setApiInsights] = useState<ApiInsight[]>([]);
   const [apiStatusInsights, setApiStatusInsights] = useState<ApiStatusInsight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(true);
 
@@ -152,7 +129,6 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
       setInsightsLoading(true);
       const expRes = await expenseApi.getAll(1, 500);
       const budRes = await budgetApi.getPlan();
-      const insightsRes = await insightsApi.getBasic(lang);
       const statusRes = await insightsApi.getStatus(lang);
 
       const raw: ExpenseRecord[] = expRes.ok && expRes.data
@@ -196,12 +172,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
         }
       }
 
-      if (insightsRes.ok && insightsRes.data) {
-        const d = insightsRes.data as any;
-        if (Array.isArray(d.insights)) {
-          setApiInsights(d.insights);
-        }
-      }
+
       if (statusRes.ok && statusRes.data) {
         const d = statusRes.data as any;
         let parsedInsights: ApiStatusInsight[] = [];
@@ -678,48 +649,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               </div>
             ) : (
               <>
-                {/* 1. Render API-based natural language insights */}
-                {apiInsights.map((insight, idx) => {
-                  const type = String(insight.type || '').toLowerCase();
-                  const cat = String(insight.category || '').toLowerCase();
-
-                  let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
-                  let Icon = ShieldCheck;
-
-                  if (type === 'negative' || type === 'danger' || type === 'error' || type === 'alert') {
-                    bgClass = 'bg-destructive/10 border-destructive/20 text-destructive'; // RED
-                    Icon = AlertCircle;
-                  } else if (type === 'warning' || type === 'warn') {
-                    bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
-                    Icon = AlertCircle;
-                  } else if (type === 'info' || cat.includes('saving')) {
-                    bgClass = 'bg-violet/10 border-violet/20 text-violet'; // VIOLET
-                    Icon = Target;
-                  } else if (cat.includes('emergency')) {
-                    bgClass = 'bg-sky/10 border-sky/20 text-sky'; // SKY
-                    Icon = Activity;
-                  } else if (cat.includes('optional') || cat.includes('entertainment')) {
-                    bgClass = 'bg-teal/10 border-teal/20 text-teal'; // TEAL
-                    Icon = Target;
-                  }
-
-                  return (
-                    <div key={`api-ins-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * idx}s both` }}>
-                      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-black uppercase">
-                          {type === 'positive' || type === 'success' ? (lang === 'ar' ? 'تحليل إيجابي' : 'Positive Insight') :
-                           type === 'negative' || type === 'danger' || type === 'error' ? (lang === 'ar' ? 'تحذير إنفاق' : 'Spending Alert') :
-                           type === 'warning' ? (lang === 'ar' ? 'تنبيه مالي' : 'Financial Warning') :
-                           (lang === 'ar' ? 'نصيحة مالية' : 'Financial Tip')}
-                        </p>
-                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(insight.message, lang)}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* 2. Render API-based status insights */}
+                {/* Render API-based status insights */}
                 {apiStatusInsights.filter(c => c.message).map((c, idx) => {
                   const status = String(c.status || c.severity || '').toLowerCase();
                   let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
@@ -734,7 +664,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                   }
 
                   return (
-                    <div key={`api-status-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * (apiInsights.length + idx)}s both` }}>
+                    <div key={`api-status-${idx}`} className={`p-4 rounded-2xl border flex gap-3 hover-lift transition-all duration-300 ${bgClass}`} style={{ animation: `slideUp 0.3s ease-out ${0.05 * idx}s both` }}>
                       <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-xs font-black uppercase">
@@ -746,8 +676,8 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                   );
                 })}
 
-                {/* 3. Fallback / Client-side calculated alerts if no API insights returned */}
-                {apiInsights.length === 0 && apiStatusInsights.length === 0 && (
+                {/* Fallback / Client-side calculated alerts if no API insights returned */}
+                {apiStatusInsights.length === 0 && (
                   <>
                     {availableIncome < 0 && (
                       <div className="bg-destructive/10 p-4 rounded-2xl border border-destructive/20 flex gap-3">
