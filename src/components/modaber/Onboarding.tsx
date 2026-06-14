@@ -25,12 +25,30 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
   const t = translations[lang];
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<Omit<UserProfile, 'account'>>({
-    monthlySalary: 6000, age: undefined, familyMembers: 1,
-    maritalStatus: 'single', livingCostLevel: 'Medium', incomeStability: 'Full-time',
-    fixedExpenses: { rent: 1000, electricity: 100, water: 50, gas: 50, transportation: 150, internet: 50, mobile: 30 },
-    debts: [], annualExpenses: [],
-    optionalExpenses: { streaming: 0, education: 0, medical: 0 },
-    preferences: { savingPriority: 'not_specified', riskTolerance: 'not_specified', emergencyFundPercentage: 10, monthlyPriorities: ['cat_food', 'cat_transport', 'cat_emergency', 'cat_savings'] }
+    monthlySalary: undefined as any, age: undefined, familyMembers: undefined as any,
+    maritalStatus: '', livingCostLevel: '', incomeStability: '',
+    fixedExpenses: {
+      rent: undefined as any,
+      electricity: undefined as any,
+      water: undefined as any,
+      gas: undefined as any,
+      transportation: undefined as any,
+      internet: undefined as any,
+      mobile: undefined as any
+    },
+    debts: [],
+    annualExpenses: [],
+    optionalExpenses: {
+      streaming: undefined as any,
+      education: undefined as any,
+      medical: undefined as any
+    },
+    preferences: {
+      savingPriority: '',
+      riskTolerance: '',
+      emergencyFundPercentage: 10,
+      monthlyPriorities: ['cat_food', 'cat_transport', 'cat_emergency', 'cat_savings']
+    }
   });
 
   const [showDebtForm, setShowDebtForm] = useState(false);
@@ -120,19 +138,72 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
 
   const nextStep = () => {
     if (step === 1) {
-      if (!formData.monthlySalary || !formData.familyMembers) { alert(t.salaryRequired); return; }
+      if (!formData.monthlySalary) {
+        alert(lang === 'ar' ? 'الرجاء إدخال الراتب الشهري' : 'Please enter your monthly salary');
+        return;
+      }
+      if (!formData.familyMembers) {
+        alert(lang === 'ar' ? 'الرجاء إدخال عدد أفراد الأسرة' : 'Please enter family members count');
+        return;
+      }
+      if (!formData.age) {
+        alert(lang === 'ar' ? 'الرجاء إدخال العمر' : 'Please enter your age');
+        return;
+      }
+      if (formData.maritalStatus === 'not_specified' || !formData.maritalStatus) {
+        alert(lang === 'ar' ? 'الرجاء اختيار الحالة الاجتماعية' : 'Please select your marital status');
+        return;
+      }
+      if (!formData.livingCostLevel) {
+        alert(lang === 'ar' ? 'الرجاء اختيار مستوى المعيشة' : 'Please select living cost level');
+        return;
+      }
+      if (!formData.incomeStability) {
+        alert(lang === 'ar' ? 'الرجاء اختيار استقرار الدخل' : 'Please select income stability');
+        return;
+      }
       if (formData.maritalStatus === 'married' && formData.familyMembers === 1) { alert(t.invalidMaritalStatus); return; }
       if (formData.maritalStatus === 'single' && formData.familyMembers > 1) { alert(t.invalidMaritalStatus); return; }
+    }
+    if (step === 2) {
+      for (const field of fixedFields) {
+        if (field.required) {
+          const val = formData.fixedExpenses[field.id as keyof typeof formData.fixedExpenses];
+          if (val === undefined || val === null || isNaN(val)) {
+            alert(lang === 'ar' ? `الرجاء إدخال قيمة لـ ${t[field.id as keyof typeof t] || field.id}` : `Please enter a value for ${t[field.id as keyof typeof t] || field.id}`);
+            return;
+          }
+        }
+      }
+    }
+    if (step === 4) {
+      if (!formData.preferences.savingPriority || formData.preferences.savingPriority === 'not_specified') {
+        alert(lang === 'ar' ? 'الرجاء اختيار أولوية الادخار' : 'Please select saving priority');
+        return;
+      }
+      if (!formData.preferences.riskTolerance || formData.preferences.riskTolerance === 'not_specified') {
+        alert(lang === 'ar' ? 'الرجاء اختيار مدى تحمل المخاطر' : 'Please select risk tolerance');
+        return;
+      }
     }
     setStep(step + 1);
   };
 
   const fixedFields = [
-    { id: 'rent', required: true }, { id: 'electricity', required: true }, { id: 'water', required: true },
-    { id: 'gas', required: true }, { id: 'transportation', required: true }, { id: 'internet', required: false }, { id: 'mobile', required: false }
+    { id: 'rent', required: true, placeholder: lang === 'ar' ? 'مثال: 1000' : 'e.g. 1000' },
+    { id: 'electricity', required: true, placeholder: lang === 'ar' ? 'مثال: 100' : 'e.g. 100' },
+    { id: 'water', required: true, placeholder: lang === 'ar' ? 'مثال: 50' : 'e.g. 50' },
+    { id: 'gas', required: true, placeholder: lang === 'ar' ? 'مثال: 50' : 'e.g. 50' },
+    { id: 'transportation', required: true, placeholder: lang === 'ar' ? 'مثال: 150' : 'e.g. 150' },
+    { id: 'internet', required: false, placeholder: lang === 'ar' ? 'مثال: 50' : 'e.g. 50' },
+    { id: 'mobile', required: false, placeholder: lang === 'ar' ? 'مثال: 30' : 'e.g. 30' }
   ];
 
-  const optionalFields = [{ id: 'streaming' }, { id: 'education' }, { id: 'medical' }];
+  const optionalFields = [
+    { id: 'streaming', placeholder: lang === 'ar' ? 'مثال: 0' : 'e.g. 0' },
+    { id: 'education', placeholder: lang === 'ar' ? 'مثال: 0' : 'e.g. 0' },
+    { id: 'medical', placeholder: lang === 'ar' ? 'مثال: 0' : 'e.g. 0' }
+  ];
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-0 sm:p-4 transition-colors duration-300 relative">
@@ -174,13 +245,13 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { label: t.monthlySalary, value: formData.monthlySalary, field: 'monthlySalary', required: true, type: 'number' },
-                  { label: t.familyMembers, value: formData.familyMembers, field: 'familyMembers', required: true, type: 'number', min: 1, max: 10 },
-                  { label: t.age, value: formData.age, field: 'age', required: false, type: 'number' },
+                  { label: t.monthlySalary, value: formData.monthlySalary, field: 'monthlySalary', required: true, type: 'number', placeholder: lang === 'ar' ? 'مثال: 5000' : 'e.g. 5000' },
+                  { label: t.familyMembers, value: formData.familyMembers, field: 'familyMembers', required: true, type: 'number', min: 1, max: 10, placeholder: lang === 'ar' ? 'مثال: 3' : 'e.g. 3' },
+                  { label: t.age, value: formData.age, field: 'age', required: true, type: 'number', placeholder: lang === 'ar' ? 'مثال: 25' : 'e.g. 25' },
                 ].map(f => (
                   <div key={f.field}>
                     <label className="block text-sm font-medium text-muted-foreground mb-2">{f.label} {f.required ? <span className="text-destructive">*</span> : `(${t.optional})`}</label>
-                    <input type="text" inputMode="numeric" required={f.required}
+                    <input type="text" inputMode="numeric" required={f.required} placeholder={f.placeholder}
                       value={displayNum(f.value as number | undefined, lang)} onChange={(e) => {
                         const cleaned = parseInput(e.target.value);
                         const val = cleaned ? Number(cleaned) : undefined;
@@ -196,17 +267,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
                   </div>
                 ))}
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">{t.maritalStatus} ({t.optional})</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">{t.maritalStatus} <span className="text-destructive">*</span></label>
                   <CustomSelect value={formData.maritalStatus} onChange={(v) => updateRootField('maritalStatus', v)}
+                    placeholder={lang === 'ar' ? 'اختر الحالة الاجتماعية' : 'Select marital status'}
                     options={[
-                      { value: 'not_specified', label: t.not_specified },
                       { value: 'single', label: t.single },
                       { value: 'married', label: t.married },
                     ]} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">{t.livingCostLevel} ({t.optional})</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">{t.livingCostLevel} <span className="text-destructive">*</span></label>
                   <CustomSelect value={formData.livingCostLevel} onChange={(v) => updateRootField('livingCostLevel', v)}
+                    placeholder={lang === 'ar' ? 'اختر مستوى تكلفة المعيشة' : 'Select living cost level'}
                     options={[
                       { value: 'High', label: t.high },
                       { value: 'Medium', label: t.medium },
@@ -214,8 +286,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
                     ]} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">{t.incomeStability} ({t.optional})</label>
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">{t.incomeStability} <span className="text-destructive">*</span></label>
                   <CustomSelect value={formData.incomeStability} onChange={(v) => updateRootField('incomeStability', v)}
+                    placeholder={lang === 'ar' ? 'اختر استقرار الدخل' : 'Select income stability'}
                     options={[
                       { value: 'Full-time', label: t.full_time },
                       { value: 'Freelance', label: t.freelance },
@@ -237,7 +310,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
                 {fixedFields.map(f => (
                   <div key={f.id}>
                     <label className="block text-sm font-medium text-muted-foreground mb-2">{t[f.id as keyof typeof t] || f.id} {f.required && <span className="text-destructive">*</span>}</label>
-                    <input type="text" inputMode="numeric" required={f.required}
+                    <input type="text" inputMode="numeric" required={f.required} placeholder={f.placeholder}
                       value={displayNum(formData.fixedExpenses[f.id as keyof typeof formData.fixedExpenses], lang)}
                       onChange={(e) => updateFixedExpense(f.id as keyof typeof formData.fixedExpenses, Number(parseInput(e.target.value) || 0))}
                       className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-sm outline-none focus:border-primary transition-all text-foreground" />
@@ -331,7 +404,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
                 {optionalFields.map(f => (
                   <div key={f.id}>
                     <label className="block text-sm font-medium text-muted-foreground mb-2">{t[f.id as keyof typeof t] || f.id} ({t.optional})</label>
-                    <input type="text" inputMode="numeric"
+                    <input type="text" inputMode="numeric" placeholder={f.placeholder}
                       value={displayNum(formData.optionalExpenses[f.id as keyof typeof formData.optionalExpenses], lang)}
                       onChange={(e) => updateOptionalExpense(f.id as keyof typeof formData.optionalExpenses, Number(parseInput(e.target.value) || 0))}
                       className="w-full px-4 py-3 bg-secondary border border-border rounded-xl text-sm outline-none focus:border-primary transition-all text-foreground" />
@@ -349,9 +422,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
               </div>
               <div className="space-y-8">
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-3">{t.savingPriority} ({t.optional})</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {['Low', 'Medium', 'High', 'not_specified'].map(p => (
+                  <label className="block text-sm font-medium text-muted-foreground mb-3">{t.savingPriority} <span className="text-destructive">*</span></label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Low', 'Medium', 'High'].map(p => (
                       <button key={p} onClick={() => updatePreference('savingPriority', p)}
                         className={`py-2 rounded-xl border-2 transition-all font-bold text-xs ${formData.preferences.savingPriority === p ? 'border-primary bg-accent text-primary' : 'border-border text-muted-foreground'}`}>
                         {t[p.toLowerCase() as keyof typeof t] || p}
@@ -360,9 +433,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-3">{t.riskTolerance} ({t.optional})</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {['Low', 'Medium', 'High', 'not_specified'].map(p => (
+                  <label className="block text-sm font-medium text-muted-foreground mb-3">{t.riskTolerance} <span className="text-destructive">*</span></label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Low', 'Medium', 'High'].map(p => (
                       <button key={p} onClick={() => updatePreference('riskTolerance', p)}
                         className={`py-2 rounded-xl border-2 transition-all font-bold text-xs ${formData.preferences.riskTolerance === p ? 'border-primary bg-accent text-primary' : 'border-border text-muted-foreground'}`}>
                         {t[p.toLowerCase() as keyof typeof t] || p}

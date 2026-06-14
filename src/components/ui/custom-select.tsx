@@ -12,9 +12,10 @@ interface CustomSelectProps {
   onChange: (value: string) => void;
   options: Option[];
   className?: string;
+  placeholder?: string;
 }
 
-const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options, className }) => {
+const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options, className, placeholder }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -35,7 +36,7 @@ const CustomSelect: React.FC<CustomSelectProps> = ({ value, onChange, options, c
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-4 py-3 bg-secondary border border-border rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all text-foreground text-sm font-medium"
       >
-        <span>{selected?.label || ''}</span>
+        <span className={cn(selected ? 'text-foreground' : 'text-muted-foreground')}>{selected?.label || placeholder || ''}</span>
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform duration-200', open && 'rotate-180')} />
       </button>
 
