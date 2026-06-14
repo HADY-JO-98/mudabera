@@ -310,17 +310,6 @@ const ExpenseTracker: React.FC<ExpenseTrackerProps> = ({ profile, lang, onNaviga
               <Plus className="w-5 h-5 text-primary" /> {t.expAddNew}
             </h3>
 
-            {/* Voice button */}
-            <button onClick={toggleVoice}
-              className={`w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold transition-all duration-300 ${
-                isListening
-                  ? 'bg-destructive text-destructive-foreground animate-pulse shadow-lg'
-                  : 'bg-secondary text-foreground hover:bg-accent'
-              }`}>
-              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-              {isListening ? t.expStopListening : t.expSpeakExpense}
-            </button>
-
             {/* Description */}
             <div>
               <label className="text-xs font-bold text-muted-foreground mb-1 block">{t.expDescription}</label>
