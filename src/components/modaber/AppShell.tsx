@@ -218,7 +218,7 @@ const AppShell: React.FC<AppShellProps> = ({ profile, lang, setLang, theme, setT
       {/* Main Content */}
       <main className={`flex-1 ${mainMargin} transition-all duration-300`}>
         {/* Top header bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-20 shadow-sm">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
           <div className="flex items-center gap-2">
             {/* Hamburger — toggles drawer on mobile, hides/shows sidebar on desktop */}
             <button

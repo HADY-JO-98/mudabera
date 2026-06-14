@@ -246,7 +246,7 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 glass border border-border p-4 rounded-3xl shadow-sm relative z-30">
+      <div className="flex flex-col sm:flex-row gap-4 glass border border-border p-4 rounded-3xl shadow-sm relative z-10">
         <div className="relative flex-1">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
