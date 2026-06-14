@@ -4,12 +4,13 @@ import { Bell, X, AlertTriangle, TrendingUp, TrendingDown, Wallet, ShoppingCart,
 import { Language } from '../../types';
 import { translations } from '../../translations';
 import { useAlerts, useMarkAlertRead, useDeleteAlert } from '../../hooks/useAlerts';
+import { renderLocalized } from '../../utils/formatNumber';
 
 export interface AppNotification {
   id: string;
-  type: 'budget' | 'price' | 'investment' | 'saving' | 'shopping' | 'achievement';
-  title: string;
-  message: string;
+  type: string;
+  title: string | { ar: string; en: string };
+  message: string | { ar: string; en: string };
   timestamp: string;
   read: boolean;
 }
@@ -18,15 +19,27 @@ interface NotificationSystemProps {
   lang: Language;
 }
 
-const getIcon = (type: AppNotification['type']) => {
-  switch (type) {
-    case 'budget': return <AlertTriangle className="w-5 h-5 text-amber" />;
-    case 'price': return <TrendingDown className="w-5 h-5 text-sky" />;
-    case 'investment': return <TrendingUp className="w-5 h-5 text-primary" />;
-    case 'saving': return <Wallet className="w-5 h-5 text-teal" />;
-    case 'shopping': return <ShoppingCart className="w-5 h-5 text-rose" />;
-    case 'achievement': return <Target className="w-5 h-5 text-violet" />;
+const getIcon = (type: string) => {
+  const t = String(type || '').toLowerCase();
+  if (t.includes('budget') || t.includes('ميزانية')) {
+    return <AlertTriangle className="w-5 h-5 text-amber" />;
   }
+  if (t.includes('price') || t.includes('سعر') || t.includes('forecaster') || t.includes('توقع')) {
+    return <TrendingDown className="w-5 h-5 text-sky" />;
+  }
+  if (t.includes('invest') || t.includes('استثمار')) {
+    return <TrendingUp className="w-5 h-5 text-primary" />;
+  }
+  if (t.includes('saving') || t.includes('ادخار') || t.includes('طوارئ')) {
+    return <Wallet className="w-5 h-5 text-teal" />;
+  }
+  if (t.includes('shop') || t.includes('تسوق') || t.includes('purchas') || t.includes('شراء')) {
+    return <ShoppingCart className="w-5 h-5 text-rose" />;
+  }
+  if (t.includes('achieve') || t.includes('إنجاز') || t.includes('نجاح')) {
+    return <Target className="w-5 h-5 text-violet" />;
+  }
+  return <Bell className="w-5 h-5 text-muted-foreground" />;
 };
 
 const NotificationSystem: React.FC<NotificationSystemProps> = ({ lang }) => {
@@ -163,8 +176,8 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({ lang }) => {
                   >
                     <div className="flex-shrink-0 mt-0.5">{getIcon(notif.type)}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-foreground">{notif.title}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.message}</p>
+                      <p className="text-sm font-bold text-foreground">{renderLocalized(notif.title, lang)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{renderLocalized(notif.message, lang)}</p>
                       <p className="text-[10px] text-muted-foreground/60 mt-1">{timeAgo(notif.timestamp)}</p>
                     </div>
                     <button
