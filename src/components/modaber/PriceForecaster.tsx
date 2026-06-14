@@ -6,6 +6,7 @@ import { Language } from '../../types';
 import { TrendingUp, TrendingDown, Minus, Clock, ShoppingCart, Percent, ChevronRight, Sparkles, BookmarkPlus, ExternalLink, Check, Search, Filter } from 'lucide-react';
 import { formatPrice, fn } from '../../utils/formatNumber';
 import { translateProductName, translateAdvice } from '../../utils/productTranslations';
+import CustomSelect from '../ui/custom-select';
 
 interface PriceForecasterProps {
   profile: UserProfile;
@@ -268,17 +269,18 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <select
+          <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <CustomSelect
             value={selectedTrend}
-            onChange={(e) => setSelectedTrend(e.target.value)}
-            className="bg-secondary/50 border border-border rounded-2xl py-2.5 px-4 text-sm text-foreground focus:outline-none focus:border-primary/50 transition-all font-cairo cursor-pointer"
-          >
-            <option value="all" className="bg-card text-foreground">{t.allTrends}</option>
-            <option value="up" className="bg-card text-foreground">{t.trendUp}</option>
-            <option value="down" className="bg-card text-foreground">{t.trendDown}</option>
-            <option value="stable" className="bg-card text-foreground">{t.trendStable}</option>
-          </select>
+            onChange={setSelectedTrend}
+            options={[
+              { value: 'all', label: t.allTrends },
+              { value: 'up', label: t.trendUp },
+              { value: 'down', label: t.trendDown },
+              { value: 'stable', label: t.trendStable },
+            ]}
+            className="min-w-[140px] z-20 font-cairo"
+          />
         </div>
       </div>
 
