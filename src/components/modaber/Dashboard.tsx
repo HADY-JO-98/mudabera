@@ -668,8 +668,8 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
               <>
                 {/* 1. Render API-based natural language insights */}
                 {apiInsights.map((insight, idx) => {
-                  const type = (insight.type || '').toLowerCase();
-                  const cat = (insight.category || '').toLowerCase();
+                  const type = String(insight.type || '').toLowerCase();
+                  const cat = String(insight.category || '').toLowerCase();
 
                   let bgClass = 'bg-primary/10 border-primary/20 text-primary'; // default green
                   let Icon = ShieldCheck;
@@ -724,7 +724,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                     bgClass = 'bg-amber/10 border-amber/20 text-amber'; // ORANGE
                     Icon = AlertCircle;
                   } else {
-                    const catId = (c.category || '').toLowerCase();
+                    const catId = String(c.category || '').toLowerCase();
                     if (catId.includes('saving')) {
                       bgClass = 'bg-violet/10 border-violet/20 text-violet'; // VIOLET
                       Icon = Target;
