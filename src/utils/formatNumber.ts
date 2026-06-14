@@ -43,3 +43,14 @@ export const formatMoney = (num: number, lang: Language, currency: string, decim
  * Check if a value is negative (for styling purposes)
  */
 export const isNegative = (num: number): boolean => num < 0;
+
+/**
+ * Render localized object values or fall back to string representations
+ */
+export const renderLocalized = (val: any, lang: Language): string => {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'object') {
+    return val[lang] || val['en'] || val['ar'] || '';
+  }
+  return String(val);
+};

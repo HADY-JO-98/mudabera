@@ -3,7 +3,7 @@ import { UserProfile, Language } from '../../types';
 import { translations } from '../../translations';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Target, Trophy, TrendingUp, History, X, Loader2 } from 'lucide-react';
-import { fn } from '../../utils/formatNumber';
+import { fn, renderLocalized } from '../../utils/formatNumber';
 import { insightsApi } from '../../services/apiClient';
 
 interface AnalyticsProps {
@@ -79,12 +79,12 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
                     <span className="text-3xl flex-shrink-0">{a.icon}</span>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-bold text-foreground truncate flex items-center gap-2">
-                        {a.title}
+                        {renderLocalized(a.title, lang)}
                         <span className="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-black rounded-full uppercase tracking-wider">
                           {lang === 'ar' ? 'مكتمل' : 'Unlocked'}
                         </span>
                       </h4>
-                      <p className="text-xs text-muted-foreground leading-normal mt-0.5">{a.description}</p>
+                      <p className="text-xs text-muted-foreground leading-normal mt-0.5">{renderLocalized(a.description, lang)}</p>
                     </div>
                   </div>
                 ))

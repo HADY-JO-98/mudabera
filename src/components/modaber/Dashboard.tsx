@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { generateFullReport } from '../../utils/pdfGenerator';
 import { expenseApi, budgetApi, insightsApi } from '../../services/apiClient';
-import { fn, formatPrice, formatNumber } from '../../utils/formatNumber';
+import { fn, formatPrice, formatNumber, renderLocalized } from '../../utils/formatNumber';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, Legend, RadialBarChart, RadialBar
@@ -701,7 +701,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                            type === 'warning' ? (lang === 'ar' ? 'تنبيه مالي' : 'Financial Warning') :
                            (lang === 'ar' ? 'نصيحة مالية' : 'Financial Tip')}
                         </p>
-                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{insight.message}</p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(insight.message, lang)}</p>
                       </div>
                     </div>
                   );
@@ -709,7 +709,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
 
                 {/* 2. Render API-based category recommendations */}
                 {apiCategoryInsights.filter(c => c.recommendation).map((c, idx) => {
-                  const catLabel = CATEGORY_LABELS[c.category]?.[lang] || c.category;
+                  const catLabel = CATEGORY_LABELS[String(c.category)]?.[lang] || renderLocalized(c.category, lang);
                   
                   const isOverspent = c.status === 'overspent' || c.status === 'overspend' || c.status === 'danger' || c.status === 'critical' || c.spent > c.planned || c.pct_of_plan > 100;
                   const isCloseToLimit = c.status === 'warning' || (c.pct_of_plan >= 80 && c.pct_of_plan <= 100);
@@ -744,7 +744,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                         <p className="text-xs font-black uppercase">
                           {catLabel}
                         </p>
-                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{c.recommendation}</p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(c.recommendation, lang)}</p>
                       </div>
                     </div>
                   );
@@ -752,7 +752,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
 
                 {/* 2b. Render API-based fixed category insights (only show those with actual spending > 0) */}
                 {apiFixedCategoryInsights.filter(c => c.actual > 0 && c.recommendation).map((c, idx) => {
-                  const catLabel = EXPENSE_CAT_LABELS[c.category]?.[lang] || c.category;
+                  const catLabel = EXPENSE_CAT_LABELS[String(c.category)]?.[lang] || renderLocalized(c.category, lang);
                   const isOverspent = c.status === 'overspent' || c.status === 'overspend' || c.status === 'danger' || c.status === 'critical' || c.actual > c.planned;
                   const isCloseToLimit = c.status === 'warning' || (c.planned > 0 && (c.actual / c.planned) >= 0.8 && (c.actual / c.planned) <= 1.0);
 
@@ -774,7 +774,7 @@ const Dashboard: React.FC<DashboardProps> = ({ profile, lang, theme }) => {
                         <p className="text-xs font-black uppercase">
                           {catLabel}
                         </p>
-                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{c.recommendation}</p>
+                        <p className="text-[11px] leading-relaxed mt-1 opacity-90">{renderLocalized(c.recommendation, lang)}</p>
                       </div>
                     </div>
                   );
