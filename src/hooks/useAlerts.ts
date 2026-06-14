@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { alertApi, profileApi } from '../services/apiClient';
 import type { AppNotification } from '../components/modaber/NotificationSystem';
 import type { UserProfile } from '../types';
+import { useApp } from '../context/AppContext';
 
 export const ALERTS_KEY = ['alerts'] as const;
 
@@ -165,21 +166,20 @@ const toAlertList = (data: unknown): AppNotification[] => {
   return ((data as { items: AppNotification[] }).items ?? []);
 };
 
-export const useAlerts = () =>
-  useQuery({
-    queryKey: ALERTS_KEY,
+export const useAlerts = () => {
+  const { lang } = useApp();
+  return useQuery({
+    queryKey: [...ALERTS_KEY, lang],
     queryFn: async () => {
-      const res = await alertApi.getAll();
+      const res = await alertApi.getAll(lang);
       if (!res.ok) {
         try {
           const profileRes = await profileApi.get().catch(() => null);
-          const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
           const profile = profileRes?.ok && profileRes.data ? (profileRes.data as UserProfile) : null;
           const fallbacks = generateFallbackAlerts(profile, lang, res.error);
           console.log("[useAlerts] API failed (400). Generated fallbacks:", fallbacks);
           return fallbacks;
         } catch (err) {
-          const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
           const fallbacks = generateFallbackAlerts(null, lang, res.error);
           console.log("[useAlerts] API failed and fallback generation threw error. Generic fallbacks:", fallbacks, err);
           return fallbacks;
@@ -192,6 +192,7 @@ export const useAlerts = () =>
     staleTime: 1000 * 30,
     refetchInterval: 1000 * 60,
   });
+};
 
 export const useMarkAlertRead = () => {
   const qc = useQueryClient();

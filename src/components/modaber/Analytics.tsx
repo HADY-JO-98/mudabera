@@ -29,7 +29,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
   React.useEffect(() => {
     const fetchAchievements = async () => {
       try {
-        const res = await insightsApi.evaluateAchievements(lang);
+        const res = await insightsApi.evaluateAchievements();
         if (res.ok && res.data) {
           const d = res.data as any;
           if (Array.isArray(d.all_achievements)) {

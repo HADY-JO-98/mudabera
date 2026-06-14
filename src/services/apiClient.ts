@@ -210,8 +210,9 @@ export const authApi = {
 
 // ─── Alert API ─────────────────────────────────────────────────────────────────
 export const alertApi = {
-  getAll() {
-    return apiClient.get('/api/Alert', getAuthHeaders());
+  getAll(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiClient.get(`/api/Alert${query}`, getAuthHeaders());
   },
   markRead(id: number) {
     return apiClient.put(`/api/Alert/${id}/mark-read`, undefined, getAuthHeaders());
@@ -270,20 +271,14 @@ export const expenseApi = {
 // ─── Insights API ──────────────────────────────────────────────────────────────
 // NOTE: All Insights endpoints are POST on the backend (not GET)
 export const insightsApi = {
-  getStatus(lang?: string) {
-    const params = lang ? `?lang=${lang}&language=${lang}` : '';
-    const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
-    return apiClient.post(`/api/Insights/status${params}`, lang ? { lang, language: lang } : undefined, headers);
+  getStatus() {
+    return apiClient.post('/api/Insights/status', undefined, getAuthHeaders());
   },
-  getBasic(lang?: string) {
-    const params = lang ? `?lang=${lang}&language=${lang}` : '';
-    const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
-    return apiClient.post(`/api/Insights/basic${params}`, lang ? { lang, language: lang } : undefined, headers);
+  getBasic() {
+    return apiClient.post('/api/Insights/basic', undefined, getAuthHeaders());
   },
-  evaluateAchievements(lang?: string) {
-    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
-    const headers = lang ? { ...getAuthHeaders(), 'Accept-Language': lang, 'lang': lang, 'language': lang } : getAuthHeaders();
-    return apiClient.post(`/api/Insights/achievements/evaluate${query}`, lang ? { lang, language: lang } : undefined, headers);
+  evaluateAchievements() {
+    return apiClient.post('/api/Insights/achievements/evaluate', undefined, getAuthHeaders());
   },
 };
 
