@@ -40,6 +40,10 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate, onLogout }) 
   const [newAnnual, setNewAnnual] = useState<Partial<AnnualExpense>>({ description: '', totalAmount: 0, priority: 'Medium' });
 
   const handleSave = () => {
+    if (!editedProfile.age) {
+      alert(t.ageRequired);
+      return;
+    }
     if (!editedProfile.monthlySalary || !editedProfile.familyMembers) {
       alert(t.salaryRequired);
       return;
@@ -176,7 +180,7 @@ const Profile: React.FC<ProfileProps> = ({ profile, lang, onUpdate, onLogout }) 
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: t.age, field: 'age', isOptional: true, value: profile.age ? fn(profile.age, lang) : t.not_specified },
+              { label: t.age, field: 'age', isOptional: false, value: profile.age ? fn(profile.age, lang) : t.not_specified },
               { label: t.monthlySalary, field: 'monthlySalary', isOptional: false, value: `${fn(profile.monthlySalary, lang)} ${t.currency}` },
               { label: t.familyMembers, field: 'familyMembers', isOptional: false, value: fn(profile.familyMembers, lang) },
               { label: t.maritalStatus, field: 'maritalStatus', isOptional: false, value: t[profile.maritalStatus as keyof typeof t] || profile.maritalStatus, options: [{value: 'not_specified', label: t.not_specified}, {value: 'single', label: t.single}, {value: 'married', label: t.married}] },

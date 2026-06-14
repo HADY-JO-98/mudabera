@@ -29,7 +29,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
   React.useEffect(() => {
     const fetchAchievements = async () => {
       try {
-        const res = await insightsApi.evaluateAchievements();
+        const res = await insightsApi.evaluateAchievements(lang);
         if (res.ok && res.data) {
           const d = res.data as any;
           if (Array.isArray(d.all_achievements)) {
@@ -44,33 +44,6 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
     };
     fetchAchievements();
   }, [lang]);
-
-  const getLocalizedAchievement = (a: any) => {
-    let titleKey = '';
-    const rawTitle = (a.title || '').trim();
-    if (rawTitle === 'savingsMaster' || rawTitle === 'Savings Master' || rawTitle === 'سيد الادخار') {
-      titleKey = 'savingsMaster';
-    } else if (rawTitle === 'budgetNinja' || rawTitle === 'Budget Ninja' || rawTitle === 'نينجا الميزانية') {
-      titleKey = 'budgetNinja';
-    } else if (rawTitle === 'smartShopper' || rawTitle === 'Smart Shopper' || rawTitle === 'المتسوق الذكي') {
-      titleKey = 'smartShopper';
-    }
-
-    let descKey = '';
-    const rawDesc = (a.description || '').trim();
-    if (rawDesc === 'savingsMasterDesc' || rawDesc.includes('Saved more than 20%') || rawDesc.includes('ادخرت أكثر من')) {
-      descKey = 'savingsMasterDesc';
-    } else if (rawDesc === 'budgetNinjaDesc' || rawDesc.includes('Kept fixed expenses') || rawDesc.includes('حافظت على المصاريف')) {
-      descKey = 'budgetNinjaDesc';
-    } else if (rawDesc === 'smartShopperDesc' || rawDesc.includes('Reduced grocery') || rawDesc.includes('خفضت الإنفاق')) {
-      descKey = 'smartShopperDesc';
-    }
-
-    const title = titleKey ? t[titleKey as keyof typeof t] : renderLocalized(a.title, lang);
-    const description = descKey ? t[descKey as keyof typeof t] : renderLocalized(a.description, lang);
-
-    return { title, description };
-  };
 
   const reductionData = [
     { category: t.electricity, reduction: fn(12, lang), status: t.stable, color: 'text-sky' },
@@ -101,19 +74,18 @@ const Analytics: React.FC<AnalyticsProps> = ({ profile, lang }) => {
                 </div>
               ) : achievements.filter(a => a.earned).length > 0 ? (
                 achievements.filter(a => a.earned).map((a, i) => {
-                  const localized = getLocalizedAchievement(a);
                   return (
                     <div key={i} className="flex items-center gap-4 p-4 rounded-2xl border border-primary/20 bg-primary/10 hover:shadow-md transition-all duration-300"
                       style={{ animation: `slideUp 0.3s ease-out ${0.05 * i}s both` }}>
                       <span className="text-3xl flex-shrink-0">{a.icon}</span>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-bold text-foreground truncate flex items-center gap-2">
-                          {localized.title}
+                          {a.title}
                           <span className="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-black rounded-full uppercase tracking-wider">
                             {lang === 'ar' ? 'مكتمل' : 'Unlocked'}
                           </span>
                         </h4>
-                        <p className="text-xs text-muted-foreground leading-normal mt-0.5">{localized.description}</p>
+                        <p className="text-xs text-muted-foreground leading-normal mt-0.5">{a.description}</p>
                       </div>
                     </div>
                   );

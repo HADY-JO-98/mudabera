@@ -277,8 +277,9 @@ export const insightsApi = {
   getBasic() {
     return apiClient.post('/api/Insights/basic', undefined, getAuthHeaders());
   },
-  evaluateAchievements() {
-    return apiClient.post('/api/Insights/achievements/evaluate', undefined, getAuthHeaders());
+  evaluateAchievements(lang?: string) {
+    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+    return apiClient.post(`/api/Insights/achievements/evaluate${query}`, undefined, getAuthHeaders());
   },
 };
 
