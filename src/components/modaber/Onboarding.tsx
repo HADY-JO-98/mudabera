@@ -163,7 +163,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, lang, setLang, them
         return;
       }
       if (formData.maritalStatus === 'married' && formData.familyMembers === 1) { alert(t.invalidMaritalStatus); return; }
-      if (formData.maritalStatus === 'single' && formData.familyMembers > 1) { alert(t.invalidMaritalStatus); return; }
     }
     if (step === 2) {
       for (const field of fixedFields) {
