@@ -3,7 +3,7 @@ import { UserProfile, PricePrediction } from '../../types';
 import { predictionApi, savedItemsApi } from '../../services/apiClient';
 import { translations } from '../../translations';
 import { Language } from '../../types';
-import { TrendingUp, TrendingDown, Minus, Clock, ShoppingCart, Percent, ChevronRight, Sparkles, BookmarkPlus, ExternalLink, Check, Search, Filter } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Clock, ShoppingCart, Percent, ChevronRight, ChevronLeft, Sparkles, BookmarkPlus, ExternalLink, Check, Search, Filter } from 'lucide-react';
 import { formatPrice, fn } from '../../utils/formatNumber';
 import { translateProductName, translateAdvice } from '../../utils/productTranslations';
 import CustomSelect from '../ui/custom-select';
@@ -43,23 +43,34 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
   const [loading, setLoading] = useState(true);
   const [savedSet, setSavedSet] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedTrend, setSelectedTrend] = useState('all');
   const [shopOpenItem, setShopOpenItem] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Debounce search term to prevent spamming requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset page when filters or search change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTrend, debouncedSearch]);
 
   useEffect(() => {
     const fetchPredictions = async () => {
+      setLoading(true);
       try {
-        // Rotate page between visits
-        let currentPage = 1;
-        const storedPage = localStorage.getItem('mudaber_prediction_page');
-        if (storedPage) {
-          currentPage = parseInt(storedPage, 10);
-        }
+        const trendParam = selectedTrend === 'all' ? undefined : selectedTrend;
+        const searchParam = debouncedSearch.trim() || undefined;
 
-        // Keep the number of items per page at exactly 50
-        const perPage = 50;
-        let res = await predictionApi.getLatest(currentPage, perPage, lang);
-
+        const res = await predictionApi.getLatest(page, 50, lang, trendParam, searchParam);
         console.log('[PriceForecaster] raw response:', res);
 
         let fetched: PricePrediction[] = [];
@@ -72,51 +83,46 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
                     : Array.isArray(d.predictions) ? d.predictions
                     : [];
 
-          fetched = raw.map((r: any) => ({
-            item:           r.product_name   ?? r.item        ?? r.productName  ?? r.name ?? '',
-            currentPrice:   r.current_price  ?? r.currentPrice ?? 0,
-            predictedPrice: r.predicted_price ?? r.predictedPrice ?? r.next_month_price ?? r.nextMonthPrice ?? 0,
-            trend:          (r.trend ?? r.trendLabel ?? r.trend_label ?? 'stable').toLowerCase(),
-            confidence:     0.85 + Math.random() * (0.98 - 0.85),
-            advice:         r.advice         ?? r.tip ?? r.recommendation ?? '',
-          }));
-        }
+          const totalCount = d.total ?? raw.length;
+          setTotalItems(totalCount);
+          setTotalPages(Math.ceil(totalCount / 50) || 1);
 
-        // Fallback to page 1 if we went out of bounds
-        if (fetched.length === 0 && currentPage > 1) {
-          currentPage = 1;
-          res = await predictionApi.getLatest(currentPage, perPage, lang);
-          if (res.ok && res.data) {
-            const d = res.data as any;
-            const raw = Array.isArray(d) ? d
-                      : Array.isArray(d.data) ? d.data
-                      : Array.isArray(d.items) ? d.items
-                      : Array.isArray(d.results) ? d.results
-                      : Array.isArray(d.predictions) ? d.predictions
-                      : [];
+          fetched = raw.map((r: any) => {
+            // Normalize trend label to 'up' | 'down' | 'stable'
+            let trendVal = 'stable';
+            const rawTrend = (r.trend_label || r.trendLabel || r.trend || '').toLowerCase().trim();
+            if (rawTrend === 'up' || rawTrend === 'ارتفاع') {
+              trendVal = 'up';
+            } else if (rawTrend === 'down' || rawTrend === 'انخفاض') {
+              trendVal = 'down';
+            } else if (rawTrend === 'stable' || rawTrend === 'مستقر') {
+              trendVal = 'stable';
+            }
 
-            fetched = raw.map((r: any) => ({
+            return {
               item:           r.product_name   ?? r.item        ?? r.productName  ?? r.name ?? '',
-              currentPrice:   r.current_price  ?? r.currentPrice ?? 0,
-              predictedPrice: r.predicted_price ?? r.predictedPrice ?? r.next_month_price ?? r.nextMonthPrice ?? 0,
-              trend:          (r.trend ?? r.trendLabel ?? r.trend_label ?? 'stable').toLowerCase(),
-              confidence:     0.85 + Math.random() * (0.98 - 0.85),
+              currentPrice:   Number(r.current_price  ?? r.currentPrice ?? 0),
+              predictedPrice: Number(r.predicted_price ?? r.predictedPrice ?? r.next_month_price ?? r.nextMonthPrice ?? 0),
+              trend:          trendVal,
+              confidence:     Number(r.confidence ?? (0.85 + Math.random() * (0.98 - 0.85))),
               advice:         r.advice         ?? r.tip ?? r.recommendation ?? '',
-            }));
-          }
+            };
+          });
+        } else {
+          setTotalItems(0);
+          setTotalPages(1);
         }
-
-        // Increment or rotate next page
-        const nextPage = fetched.length > 0 ? currentPage + 1 : 1;
-        localStorage.setItem('mudaber_prediction_page', nextPage.toString());
         setPredictions(fetched);
       } catch (error) {
         console.error('[PriceForecaster] fetch failed:', error);
+        setPredictions([]);
+        setTotalItems(0);
+        setTotalPages(1);
       }
       setLoading(false);
     };
     fetchPredictions();
-  }, [lang]);
+  }, [lang, page, selectedTrend, debouncedSearch]);
 
   // Load saved items from backend - normalize to English names for dedup
   useEffect(() => {
@@ -199,14 +205,31 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
     'hover:shadow-[0_20px_40px_-12px_hsl(var(--color-teal)/0.15)]',
   ];
 
-  const filteredPredictions = predictions.filter(p => {
-    if (!p?.item) return false;
-    const nameTranslated = translateProductName(p.item, lang) || '';
-    const matchesSearch = nameTranslated.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          p.item.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTrend = selectedTrend === 'all' || p.trend === selectedTrend;
-    return matchesSearch && matchesTrend;
-  });
+  const getLocalizedAdvice = (p: PricePrediction) => {
+    // Try to find advice using translateAdvice with the item name
+    let advice = translateAdvice(p.advice, p.item, lang);
+    if (!advice) {
+      // Try translating the base item name to find a match
+      const enName = translateProductName(p.item, 'en').toLowerCase();
+      const arName = translateProductName(p.item, 'ar');
+      if (enName.includes('sugar') || arName.includes('سكر')) {
+        advice = translateAdvice('', 'Sugar', lang);
+      } else if (enName.includes('rice') || arName.includes('أرز')) {
+        advice = translateAdvice('', 'Rice', lang);
+      } else if (enName.includes('oil') || arName.includes('زيت')) {
+        advice = translateAdvice('', 'Cooking Oil', lang);
+      } else if (enName.includes('meat') || arName.includes('لحم')) {
+        advice = translateAdvice('', 'Meat', lang);
+      } else if (enName.includes('vegetable') || arName.includes('خضار') || arName.includes('خضروات')) {
+        advice = translateAdvice('', 'Vegetables', lang);
+      } else if (enName.includes('milk') || enName.includes('dairy') || arName.includes('حليب') || arName.includes('ألبان')) {
+        advice = translateAdvice('', 'Dairy', lang);
+      }
+    }
+    return advice || p.advice;
+  };
+
+  const filteredPredictions = predictions;
 
   if (loading) {
     return (
@@ -341,7 +364,7 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
                   <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
                     <div style={{ width: `${p.confidence * 100}%` }} className="h-full bg-primary rounded-full transition-all duration-700" />
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed font-medium italic">{translateAdvice(p.advice, p.item, lang)}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed font-medium italic">{getLocalizedAdvice(p)}</p>
                   {p.trend === 'up' && (
                     <div className="flex items-center gap-2 p-3 bg-amber/10 rounded-2xl border border-amber/20">
                       <Sparkles className="w-4 h-4 text-amber" />
@@ -387,6 +410,40 @@ const PriceForecaster: React.FC<PriceForecasterProps> = ({ profile, lang, onNavi
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 glass border border-border rounded-3xl mt-8">
+          <p className="text-xs text-muted-foreground font-medium font-cairo">
+            {lang === 'ar'
+              ? `عرض ${fn((page - 1) * 50 + 1, 'ar')} - ${fn(Math.min(page * 50, totalItems), 'ar')} من أصل ${fn(totalItems, 'ar')} منتج`
+              : `Showing ${(page - 1) * 50 + 1} - ${Math.min(page * 50, totalItems)} of ${totalItems} products`}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-2.5 glass border border-border rounded-xl text-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground transition-all duration-200"
+              title={lang === 'ar' ? 'الصفحة السابقة' : 'Previous Page'}
+            >
+              {lang === 'ar' ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            </button>
+            <span className="text-xs font-bold text-foreground px-3 font-cairo">
+              {lang === 'ar'
+                ? `صفحة ${fn(page, 'ar')} من ${fn(totalPages, 'ar')}`
+                : `Page ${page} of ${totalPages}`}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-2.5 glass border border-border rounded-xl text-foreground hover:bg-primary/10 hover:text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-foreground transition-all duration-200"
+              title={lang === 'ar' ? 'الصفحة التالية' : 'Next Page'}
+            >
+              {lang === 'ar' ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       )}
     </div>

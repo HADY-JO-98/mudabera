@@ -295,15 +295,21 @@ export const investmentsApi = {
 //   GET /api/Prediction/latest          — most recent prediction set
 //   GET /api/Prediction/{date}          — predictions for a specific date (YYYY-MM-DD)
 export const predictionApi = {
-  /** Fetch the latest price predictions with pagination support */
-  getLatest(page = 1, perPage = 50, lang?: string) {
+  /** Fetch the latest price predictions with pagination support and filters */
+  getLatest(page = 1, perPage = 50, lang?: string, trend?: string, search?: string) {
     const params = new URLSearchParams({ page: page.toString(), per_page: perPage.toString() });
     if (lang) params.append('lang', lang);
+    if (trend) params.append('trend', trend);
+    if (search) params.append('search', search);
     return apiClient.get(`/api/Prediction/latest?${params.toString()}`, getAuthHeaders());
   },
-  /** Fetch predictions for a specific date, e.g. "2025-08-01" */
-  getByDate(date: string, lang?: string) {
-    const query = lang ? `?lang=${encodeURIComponent(lang)}` : '';
+  /** Fetch predictions for a specific date, e.g. "2025-08-01" with filters */
+  getByDate(date: string, lang?: string, trend?: string, search?: string) {
+    const params = new URLSearchParams();
+    if (lang) params.append('lang', lang);
+    if (trend) params.append('trend', trend);
+    if (search) params.append('search', search);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return apiClient.get(`/api/Prediction/${encodeURIComponent(date)}${query}`, getAuthHeaders());
   },
 };
