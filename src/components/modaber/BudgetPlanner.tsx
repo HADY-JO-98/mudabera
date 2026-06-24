@@ -59,10 +59,10 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
   const [showAdjust, setShowAdjust] = useState(false);
   const initializedRef = useRef(false);
 
-  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + b, 0) +
-                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + b, 0);
-  const available = apiTotalIncome ?? (profile.monthlySalary - totalFixed);
-  const totalIncome = apiTotalIncome ? (apiTotalIncome + totalFixed) : profile.monthlySalary;
+  const totalFixed = (Object.values(profile.fixedExpenses || {}) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) +
+                     (Object.values(profile.optionalExpenses || {}) as number[]).reduce((a, b) => a + (Number(b) || 0), 0);
+  const available = apiTotalIncome ?? ((Number(profile.monthlySalary) || 0) - totalFixed);
+  const totalIncome = apiTotalIncome ? (apiTotalIncome + totalFixed) : (Number(profile.monthlySalary) || 0);
 
   // Build allocations from percentages/amounts with current language
   const buildAllocations = useCallback((stored?: StoredBudget) => {
@@ -84,8 +84,8 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     apiAllocations.map((a: any) => ({
       key: a.category as string,
       category: CATEGORY_LABELS[a.category]?.[lang] ?? a.category,
-      amount: Number(a.amount ?? 0),
-      percentage: Number(a.percentage ?? 0),
+      amount: isNaN(Number(a.amount)) ? 0 : Number(a.amount),
+      percentage: isNaN(Number(a.percentage)) ? 0 : Number(a.percentage),
       advice: a.advice || (CATEGORY_ADVICE[a.category]?.[lang] ?? ''),
     })), [lang]);
 
@@ -195,7 +195,38 @@ const BudgetPlanner: React.FC<BudgetPlannerProps> = ({ profile, lang }) => {
     'bg-primary', 'bg-sky', 'bg-amber', 'bg-violet', 'bg-rose', 'bg-teal', 'bg-orange', 'bg-lime', 'bg-indigo'
   ];
 
-  if (loading) {
+  const hasValidNumbers = (() => {
+    if (allocations.length === 0) return false;
+    
+    const requiredKeys = ['food', 'savings', 'emergency'];
+    const hasRequired = requiredKeys.every(k => {
+      const item = allocations.find(a => a.key === k);
+      if (!item) return false;
+      const amt = Number(item.amount);
+      const pct = Number(item.percentage);
+      return !isNaN(amt) && isFinite(amt) && !isNaN(pct) && isFinite(pct);
+    });
+    
+    if (!hasRequired) return false;
+    
+    const optionalItem = allocations.find(a => a.key === 'optional');
+    if (optionalItem) {
+      const amt = Number(optionalItem.amount);
+      const pct = Number(optionalItem.percentage);
+      if (isNaN(amt) || !isFinite(amt) || isNaN(pct) || !isFinite(pct)) {
+        return false;
+      }
+    }
+    
+    if (isNaN(remainingCash) || !isFinite(remainingCash)) return false;
+    if (isNaN(totalAllocated) || !isFinite(totalAllocated)) return false;
+    if (isNaN(totalIncome) || !isFinite(totalIncome)) return false;
+    if (isNaN(totalFixed) || !isFinite(totalFixed)) return false;
+    
+    return true;
+  })();
+
+  if (loading || !hasValidNumbers) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
